@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "apps.wastage",
     "apps.complimentary",
     "apps.purchasing",
+    "apps.expenses",
+    "apps.closing",
 ]
 
 MIDDLEWARE = [

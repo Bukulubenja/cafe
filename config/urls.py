@@ -27,4 +27,6 @@ urlpatterns = [
     path('api/wastage/', include('apps.wastage.urls')),
     path('api/complimentary/', include('apps.complimentary.urls')),
     path('api/purchasing/', include('apps.purchasing.urls')),
+    path('api/expenses/', include('apps.expenses.urls')),
+    path('api/closing/', include('apps.closing.urls')),
 ]
