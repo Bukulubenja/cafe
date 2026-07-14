@@ -139,6 +139,21 @@ class ComplimentaryMealApiTests(TestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.content)
 
+    def test_cannot_assign_staff_from_another_cafe(self):
+        other_cafe = Cafe.objects.create(name="2Kings")
+        other_branch = Branch.objects.create(tenant=other_cafe, name="Ntinda")
+        outsider = User.objects.create_user(
+            email="waiter@2kings.co", password="pw12345!", role=User.Role.WAITER, cafe=other_cafe, branch=other_branch
+        )
+
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post(
+            "/api/complimentary/meals/",
+            {"menu_item": self.tea.id, "quantity": 1, "reason": "waiter_breakfast", "staff": outsider.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+
     def test_waiter_cannot_approve_manager_can(self):
         self.client.login(email="waiter@javas.co", password="pw12345!")
         resp = self.client.post(
