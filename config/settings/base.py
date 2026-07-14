@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.tenants",
     "apps.accounts",
+    "apps.menu",
+    "apps.pos",
 ]
 
 MIDDLEWARE = [
