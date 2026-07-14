@@ -1,31 +1,20 @@
-from rest_framework.permissions import BasePermission
-
-from .models import User
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 
-class HasRole(BasePermission):
-    """DRF permission factory: HasRole(User.Role.MANAGER, User.Role.OWNER)."""
+class RolePermission(BasePermission):
+    """Base for role-gated DRF permissions: authenticated staff whose `role`
+    is in `read_roles` may use safe methods, `write_roles` for the rest.
+    Superusers (platform admins) always pass.
+    """
 
-    def __init__(self, *roles):
-        self.roles = roles
-
-    def __call__(self):
-        return self
+    read_roles = ()
+    write_roles = ()
 
     def has_permission(self, request, view):
         user = request.user
-        return bool(
-            user
-            and user.is_authenticated
-            and (user.is_superuser or user.role in self.roles)
-        )
-
-
-class IsOwner(HasRole):
-    def __init__(self):
-        super().__init__(User.Role.OWNER)
-
-
-class IsManagerOrAbove(HasRole):
-    def __init__(self):
-        super().__init__(User.Role.OWNER, User.Role.MANAGER)
+        if not (user and user.is_authenticated):
+            return False
+        if user.is_superuser:
+            return True
+        allowed = self.read_roles if request.method in SAFE_METHODS else self.write_roles
+        return user.role in allowed

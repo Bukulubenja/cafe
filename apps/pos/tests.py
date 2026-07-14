@@ -131,6 +131,9 @@ class PosApiTests(TestCase):
         self.chef = User.objects.create_user(
             email="chef@javas.co", password="pw12345!", role=User.Role.CHEF, cafe=self.cafe, branch=self.branch
         )
+        self.cashier = User.objects.create_user(
+            email="cashier@javas.co", password="pw12345!", role=User.Role.CASHIER, cafe=self.cafe, branch=self.branch
+        )
         self.client = APIClient()
 
     def test_waiter_can_create_order_and_add_item(self):
@@ -144,6 +147,32 @@ class PosApiTests(TestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertEqual(resp.data["quantity"], 2)
+
+    def test_cashier_can_take_payment_but_not_create_order(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        order = Order.objects.create(table=self.table, created_by=self.waiter)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.client.login(email="cashier@javas.co", password="pw12345!")
+        resp = self.client.post("/api/pos/orders/", {"table": self.table.id, "order_type": "dine_in"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+        resp = self.client.post(f"/api/pos/orders/{order.id}/pay/", {"payment_method": "cash"}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["status"], "paid")
+
+    def test_chef_cannot_take_payment(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        order = Order.objects.create(table=self.table, created_by=self.waiter)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.client.login(email="chef@javas.co", password="pw12345!")
+        resp = self.client.post(f"/api/pos/orders/{order.id}/pay/", {"payment_method": "cash"}, format="json")
+        self.assertEqual(resp.status_code, 403)
 
     def test_chef_cannot_create_order(self):
         self.client.login(email="chef@javas.co", password="pw12345!")

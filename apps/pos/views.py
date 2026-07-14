@@ -85,7 +85,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         )
         return Response(OrderItemSerializer(item).data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[CanTakePayment])
     def pay(self, request, pk=None):
         order = self.get_object()
         serializer = PayOrderSerializer(data=request.data)

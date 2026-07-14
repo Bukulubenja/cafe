@@ -13,3 +13,6 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 if not ALLOWED_HOSTS:  # noqa: F405
     raise RuntimeError("DJANGO_ALLOWED_HOSTS must be set in production")
+
+if SECRET_KEY.startswith("django-insecure-"):  # noqa: F405
+    raise RuntimeError("DJANGO_SECRET_KEY must be set to a real secret in production")
