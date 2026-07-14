@@ -13,6 +13,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
     profit_margin = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     vat_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     price_including_vat = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    is_available_now = serializers.SerializerMethodField()
 
     class Meta:
         model = MenuItem
@@ -27,6 +28,7 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "prep_time_minutes",
             "requires_kitchen",
             "is_available",
+            "is_available_now",
             "profit_margin",
             "vat_amount",
             "price_including_vat",
@@ -34,3 +36,14 @@ class MenuItemSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+    def get_is_available_now(self, obj):
+        """Per-branch stock-aware availability. `None` when the requesting
+        user has no single branch in context (e.g. an Owner viewing all
+        branches) -- not applicable at that scope.
+        """
+        request = self.context.get("request")
+        branch = getattr(request, "branch", None) if request else None
+        if branch is None:
+            return None
+        return obj.is_available_at(branch)

@@ -202,6 +202,24 @@ class PosApiTests(TestCase):
         )
         self.client = APIClient()
 
+    def test_cannot_add_item_that_is_out_of_stock(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        chicken = Ingredient.objects.create(name="Chicken", unit=Ingredient.Unit.PIECE)
+        StockItem.objects.create(ingredient=chicken, quantity_on_hand=Decimal("0"))
+        RecipeItem.objects.create(menu_item=self.menu_item, ingredient=chicken, quantity_required=Decimal("1"))
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post("/api/pos/orders/", {"table": self.table.id, "order_type": "dine_in"}, format="json")
+        order_id = resp.data["id"]
+
+        resp = self.client.post(
+            f"/api/pos/orders/{order_id}/items/", {"menu_item": self.menu_item.id, "quantity": 1}, format="json"
+        )
+        self.assertEqual(resp.status_code, 400)
+
     def test_waiter_can_create_order_and_add_item(self):
         self.client.login(email="waiter@javas.co", password="pw12345!")
         resp = self.client.post("/api/pos/orders/", {"table": self.table.id, "order_type": "dine_in"}, format="json")

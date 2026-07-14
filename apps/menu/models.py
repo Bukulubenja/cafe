@@ -30,7 +30,9 @@ class MenuItem(TenantModel):
 
     `is_available` is the tenant-wide switch (e.g. seasonal item removed).
     Per-branch stock-driven availability (e.g. "out of chicken today") is
-    layered on later by the inventory module -- not modeled here yet.
+    computed on demand via `is_available_at()` rather than stored, so it
+    never needs to be kept in sync via signals scattered across every
+    stock-mutating app (POS, wastage, comp meals, purchasing, ...).
     """
 
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="items")
@@ -71,3 +73,23 @@ class MenuItem(TenantModel):
     @property
     def price_including_vat(self):
         return self.selling_price + self.vat_amount
+
+    def is_available_at(self, branch):
+        """readme's Ingredient Availability differentiator: an item with no
+        recipe configured is always available (matches this codebase's
+        existing no-recipe-means-no-stock-constraint convention); one with
+        a recipe is unavailable at `branch` if the tenant-wide switch is
+        off, or if any ingredient it needs is short for even one serving.
+        """
+        if not self.is_available:
+            return False
+
+        # Local import: apps.inventory imports apps.menu (RecipeItem ->
+        # MenuItem), so a module-level import here would be circular.
+        from apps.inventory.models import StockItem
+
+        for recipe_item in self.recipe_items.select_related("ingredient"):
+            stock_item = StockItem.unscoped.filter(branch=branch, ingredient=recipe_item.ingredient).first()
+            if stock_item is None or stock_item.quantity_on_hand < recipe_item.quantity_required:
+                return False
+        return True

@@ -65,6 +65,11 @@ class OrderViewSet(viewsets.ModelViewSet):
             raise DRFValidationError("Cannot add items to an order that is not open.")
         serializer = OrderItemCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        menu_item = serializer.validated_data["menu_item"]
+        if not menu_item.is_available_at(order.branch):
+            raise DRFValidationError(
+                {"menu_item": f"{menu_item.name} is currently unavailable at this branch (out of stock)."}
+            )
         # Set tenant/branch explicitly from the order rather than relying on
         # ambient request context, since an Owner viewing "all branches" has
         # no single branch in context yet the item must land on the order's branch.
