@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "apps.staff_feeding",
     "apps.payroll",
     "apps.notifications",
+    "apps.web",
 ]
 
 MIDDLEWARE = [
@@ -103,6 +104,8 @@ CHANNEL_LAYERS = {
 }
 
 AUTH_USER_MODEL = "accounts.User"
+LOGIN_URL = "web:login"
+LOGIN_REDIRECT_URL = "web:home"
 
 DATABASES = {
     "default": dj_database_url.config(

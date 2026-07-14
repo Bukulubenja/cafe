@@ -1,0 +1,26 @@
+{% extends "web/base.html" %}
+{% block title %}Tables - Cafe ERP{% endblock %}
+{% block content %}
+<h1>{{ branch.name|default:"Tables" }}</h1>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<p>
+  <form class="inline" method="post" action="{% url 'web:new_takeaway' %}">
+    {% csrf_token %}
+    <button class="btn primary" type="submit">+ New Takeaway Order</button>
+  </form>
+</p>
+<div class="grid">
+  {% for table in tables %}
+  <a class="table-card {{ table.status }}" href="{% url 'web:order_for_table' table.id %}">
+    {{ table.name }}
+    <small>{{ table.get_status_display }}</small>
+  </a>
+  {% empty %}
+  <p class="empty">No tables yet for this branch.</p>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "web/base.html" %}
+{% block title %}Order #{{ order.id }} - Cafe ERP{% endblock %}
+{% block content %}
+<p><a href="{% url 'web:tables' %}">&larr; Back to tables</a></p>
+<h1>
+  Order #{{ order.id }}
+  {% if order.table %}&middot; {{ order.table.name }}{% else %}&middot; Takeaway{% endif %}
+  &middot; {{ order.get_status_display }}
+</h1>
+
+<div class="panel">
+  <table class="items">
+    <thead>
+      <tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Line total</th><th>Kitchen</th></tr>
+    </thead>
+    <tbody>
+      {% for item in order.active_items %}
+      <tr>
+        <td>{{ item.menu_item.name }}{% if item.notes %}<br><small>{{ item.notes }}</small>{% endif %}</td>
+        <td>{{ item.quantity }}</td>
+        <td>{{ item.unit_price }}</td>
+        <td>{{ item.line_subtotal }}</td>
+        <td>{{ item.get_kitchen_status_display }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="empty">No items yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="totals">
+    <div>Subtotal: {{ order.subtotal }}</div>
+    <div>VAT: {{ order.vat_total }}</div>
+    <div class="grand">Total: {{ order.total }}</div>
+  </div>
+</div>
+
+{% if order.status == "open" and can_edit %}
+<h2>Add item</h2>
+<div class="panel">
+  {% for category in categories %}
+  {% if category.items.all %}
+  <div class="category-group">
+    <h3>{{ category.name }}</h3>
+    {% for item in category.items.all %}
+    <span class="item-pill {% if not item.available_now %}unavailable{% endif %}">
+      {{ item.name }} ({{ item.selling_price }})
+      {% if item.available_now %}
+      <form class="inline" method="post" action="{% url 'web:order_add_item' order.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="menu_item" value="{{ item.id }}">
+        <input type="number" name="quantity" value="1" min="1" style="width: 3rem;">
+        <button type="submit">+</button>
+      </form>
+      {% else %}
+      <small>unavailable</small>
+      {% endif %}
+    </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if order.status == "open" %}
+<div class="panel">
+  {% if can_pay %}
+  <form method="post" action="{% url 'web:order_pay' order.id %}" style="margin-bottom: 0.75rem;">
+    {% csrf_token %}
+    <div class="field">
+      <label for="id_payment_method">Payment method</label>
+      <select name="payment_method" id="id_payment_method">
+        {% for value, label in payment_methods %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn primary" type="submit">Mark Paid</button>
+  </form>
+  {% endif %}
+  {% if can_edit %}
+  <form method="post" action="{% url 'web:order_cancel' order.id %}">
+    {% csrf_token %}
+    <button class="btn danger" type="submit">Cancel Order</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

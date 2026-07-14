@@ -1,0 +1,23 @@
+{% extends "web/base.html" %}
+{% block title %}Log in - Cafe ERP{% endblock %}
+{% block content %}
+<div class="login-wrap panel">
+  <h1>Log in</h1>
+  {% if form.errors %}
+  <ul class="messages"><li class="error">Incorrect email or password.</li></ul>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="id_username">Email</label>
+      <input type="email" name="username" id="id_username" autofocus required>
+    </div>
+    <div class="field">
+      <label for="id_password">Password</label>
+      <input type="password" name="password" id="id_password" required>
+    </div>
+    <input type="hidden" name="next" value="{{ next }}">
+    <button class="btn primary" type="submit">Log in</button>
+  </form>
+</div>
+{% endblock %}

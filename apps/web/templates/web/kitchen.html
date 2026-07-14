@@ -1,0 +1,36 @@
+{% extends "web/base.html" %}
+{% load static %}
+{% block title %}Kitchen Display - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Kitchen Display{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="kitchen-board">
+  <div class="kitchen-col">
+    <h2>Pending</h2>
+    <div id="col-pending"></div>
+  </div>
+  <div class="kitchen-col">
+    <h2>Cooking</h2>
+    <div id="col-cooking"></div>
+  </div>
+  <div class="kitchen-col">
+    <h2>Ready</h2>
+    <div id="col-ready"></div>
+  </div>
+</div>
+<template id="ticket-template">
+  <div class="ticket">
+    <strong class="t-table"></strong>
+    <div class="meta"><span class="t-item"></span> &times; <span class="t-qty"></span></div>
+    <div class="notes"></div>
+    <div class="t-actions"></div>
+  </div>
+</template>
+<script>
+  window.KITCHEN_BRANCH_ID = {{ branch.id }};
+</script>
+<script src="{% static 'web/js/kitchen.js' %}"></script>
+{% endif %}
+{% endblock %}

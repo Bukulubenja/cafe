@@ -1,0 +1,38 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Cafe ERP{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'web/css/style.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  {% if user.is_authenticated %}
+  <header class="topbar">
+    <div class="brand">{{ user.cafe.name|default:"Cafe ERP" }}</div>
+    <nav>
+      <a href="{% url 'web:tables' %}">Tables</a>
+      <a href="{% url 'web:kitchen' %}">Kitchen</a>
+    </nav>
+    <div class="who">
+      {{ user.email }} &middot; {{ user.get_role_display|default:"Staff" }}
+      <form class="inline" method="post" action="{% url 'web:logout' %}">
+        {% csrf_token %}
+        <button class="btn" type="submit">Log out</button>
+      </form>
+    </div>
+  </header>
+  {% endif %}
+  <main>
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
