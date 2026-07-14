@@ -1,6 +1,23 @@
+import uuid as uuid_lib
+
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from apps.tenants.models import Branch
+
+
+def parse_client_id(request_data):
+    """Validates an optional client-generated UUID used for idempotent
+    offline-sync retries (a client queues a create while offline, then may
+    resend it after reconnecting without knowing if the first attempt
+    landed). Returns None if not provided; raises 400 if malformed.
+    """
+    raw = request_data.get("client_id")
+    if not raw:
+        return None
+    try:
+        return uuid_lib.UUID(str(raw))
+    except (ValueError, AttributeError, TypeError):
+        raise DRFValidationError({"client_id": "Must be a valid UUID."})
 
 
 def resolve_acting_branch(user, request_data):

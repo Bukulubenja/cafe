@@ -44,6 +44,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "started_cooking_at",
             "ready_at",
             "served_at",
+            "client_id",
         ]
         read_only_fields = [
             "unit_price",
@@ -53,6 +54,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "started_cooking_at",
             "ready_at",
             "served_at",
+            "client_id",
         ]
 
 
@@ -80,8 +82,9 @@ class OrderSerializer(serializers.ModelSerializer):
             "subtotal",
             "vat_total",
             "total",
+            "client_id",
         ]
-        read_only_fields = ["status", "payment_method", "created_by", "opened_at", "closed_at"]
+        read_only_fields = ["status", "payment_method", "created_by", "opened_at", "closed_at", "client_id"]
 
 
 class PayOrderSerializer(serializers.Serializer):

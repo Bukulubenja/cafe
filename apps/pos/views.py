@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
-from apps.core.utils import resolve_acting_branch
+from apps.core.utils import parse_client_id, resolve_acting_branch
 
 from .models import Order, OrderItem, Table
 from .permissions import CanTakePayment, KitchenPermission, OrderPermission, TablePermission
@@ -45,15 +45,28 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Order.objects.select_related("table", "created_by").prefetch_related("items__menu_item").all()
 
+    def create(self, request, *args, **kwargs):
+        # Offline-first: a POS terminal may retry a queued create after
+        # reconnecting without knowing if the first attempt landed. If a
+        # client_id was already used, return that order instead of creating
+        # a duplicate sale.
+        client_id = parse_client_id(request.data)
+        if client_id:
+            existing = Order.unscoped.filter(tenant=request.user.cafe, client_id=client_id).first()
+            if existing:
+                return Response(self.get_serializer(existing).data, status=status.HTTP_200_OK)
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         user = self.request.user
         branch = resolve_acting_branch(user, self.request.data)
+        client_id = parse_client_id(self.request.data)
 
         table = serializer.validated_data.get("table")
         if table is not None and table.branch_id != branch.id:
             raise DRFValidationError({"table": "Table does not belong to the selected branch."})
 
-        order = serializer.save(created_by=user, tenant=branch.tenant, branch=branch)
+        order = serializer.save(created_by=user, tenant=branch.tenant, branch=branch, client_id=client_id)
         if order.table_id:
             order.table.status = Table.Status.OCCUPIED
             order.table.save(update_fields=["status"])
@@ -61,6 +74,14 @@ class OrderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="items")
     def add_item(self, request, pk=None):
         order = self.get_object()
+        client_id = parse_client_id(request.data)
+        if client_id:
+            existing = OrderItem.unscoped.filter(tenant=order.tenant, client_id=client_id).first()
+            if existing:
+                if existing.order_id != order.id:
+                    raise DRFValidationError({"client_id": "Already used for a different order."})
+                return Response(OrderItemSerializer(existing).data, status=status.HTTP_200_OK)
+
         if order.status != Order.Status.OPEN:
             raise DRFValidationError("Cannot add items to an order that is not open.")
         serializer = OrderItemCreateSerializer(data=request.data)
@@ -78,6 +99,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             order=order,
             tenant=order.tenant,
             branch=order.branch,
+            client_id=client_id,
             **serializer.validated_data,
         )
         return Response(OrderItemSerializer(item).data, status=status.HTTP_201_CREATED)

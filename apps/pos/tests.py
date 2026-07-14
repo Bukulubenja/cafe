@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
@@ -302,3 +303,127 @@ class PosApiTests(TestCase):
         resp = self.client.get("/api/pos/orders/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 0)
+
+
+class OfflineSyncIdempotencyTests(TestCase):
+    """Offline-first: a POS terminal generates a client_id before ever
+    reaching the server, so a retried create (after reconnecting, unsure if
+    the first attempt landed) can't double-book a sale.
+    """
+
+    def setUp(self):
+        self.cafe = Cafe.objects.create(name="Javas")
+        self.branch = Branch.objects.create(tenant=self.cafe, name="Kampala Rd")
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        self.category = Category.objects.create(name="Lunch")
+        self.menu_item = MenuItem.objects.create(
+            category=self.category, name="Chicken Pilau", selling_price=Decimal("15000")
+        )
+        self.table = Table.objects.create(name="T1")
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.waiter = User.objects.create_user(
+            email="waiter@javas.co", password="pw12345!", role=User.Role.WAITER, cafe=self.cafe, branch=self.branch
+        )
+        self.client = APIClient()
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+
+    def test_retried_order_create_returns_existing_order_not_a_duplicate(self):
+        client_id = str(uuid.uuid4())
+        payload = {"table": self.table.id, "order_type": "dine_in", "client_id": client_id}
+
+        first = self.client.post("/api/pos/orders/", payload, format="json")
+        self.assertEqual(first.status_code, 201, first.content)
+
+        second = self.client.post("/api/pos/orders/", payload, format="json")
+        self.assertEqual(second.status_code, 200, second.content)
+        self.assertEqual(second.data["id"], first.data["id"])
+        self.assertEqual(Order.objects.count(), 1)
+
+    def test_without_client_id_retries_create_duplicates(self):
+        payload = {"table": self.table.id, "order_type": "dine_in"}
+        self.client.post("/api/pos/orders/", payload, format="json")
+        self.client.post("/api/pos/orders/", payload, format="json")
+        self.assertEqual(Order.objects.count(), 2)
+
+    def test_malformed_client_id_rejected(self):
+        resp = self.client.post(
+            "/api/pos/orders/",
+            {"table": self.table.id, "order_type": "dine_in", "client_id": "not-a-uuid"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_retried_add_item_returns_existing_item_not_a_duplicate(self):
+        order_resp = self.client.post(
+            "/api/pos/orders/", {"table": self.table.id, "order_type": "dine_in"}, format="json"
+        )
+        order_id = order_resp.data["id"]
+        client_id = str(uuid.uuid4())
+        payload = {"menu_item": self.menu_item.id, "quantity": 2, "client_id": client_id}
+
+        first = self.client.post(f"/api/pos/orders/{order_id}/items/", payload, format="json")
+        self.assertEqual(first.status_code, 201, first.content)
+
+        second = self.client.post(f"/api/pos/orders/{order_id}/items/", payload, format="json")
+        self.assertEqual(second.status_code, 200, second.content)
+        self.assertEqual(second.data["id"], first.data["id"])
+        self.assertEqual(OrderItem.objects.filter(order_id=order_id).count(), 1)
+
+    def test_reusing_item_client_id_on_a_different_order_is_rejected(self):
+        client_id = str(uuid.uuid4())
+        order1 = self.client.post(
+            "/api/pos/orders/", {"table": self.table.id, "order_type": "dine_in"}, format="json"
+        ).data
+        table2 = self._make_second_table()
+        order2 = self.client.post(
+            "/api/pos/orders/", {"table": table2.id, "order_type": "dine_in"}, format="json"
+        ).data
+
+        payload = {"menu_item": self.menu_item.id, "quantity": 1, "client_id": client_id}
+        first = self.client.post(f"/api/pos/orders/{order1['id']}/items/", payload, format="json")
+        self.assertEqual(first.status_code, 201, first.content)
+
+        conflict = self.client.post(f"/api/pos/orders/{order2['id']}/items/", payload, format="json")
+        self.assertEqual(conflict.status_code, 400)
+
+    def _make_second_table(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        table = Table.objects.create(name="T2")
+        set_current_tenant(None)
+        set_current_branch(None)
+        return table
+
+    def test_same_literal_uuid_isolated_across_cafes(self):
+        other_cafe = Cafe.objects.create(name="2Kings")
+        other_branch = Branch.objects.create(tenant=other_cafe, name="Ntinda")
+        other_waiter = User.objects.create_user(
+            email="waiter@2kings.co", password="pw12345!", role=User.Role.WAITER, cafe=other_cafe, branch=other_branch
+        )
+        set_current_tenant(other_cafe)
+        set_current_branch(other_branch)
+        other_table = Table.objects.create(name="T1")
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        shared_client_id = str(uuid.uuid4())
+
+        resp = self.client.post(
+            "/api/pos/orders/",
+            {"table": self.table.id, "order_type": "dine_in", "client_id": shared_client_id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        self.client.logout()
+        self.client.login(email="waiter@2kings.co", password="pw12345!")
+        resp2 = self.client.post(
+            "/api/pos/orders/",
+            {"table": other_table.id, "order_type": "dine_in", "client_id": shared_client_id},
+            format="json",
+        )
+        self.assertEqual(resp2.status_code, 201, resp2.content)  # not treated as a duplicate of the other cafe's order
+        self.assertEqual(Order.unscoped.filter(client_id=shared_client_id).count(), 2)

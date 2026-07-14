@@ -56,11 +56,18 @@ class Order(BranchModel):
         "customers.Customer", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
     )
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, blank=True)
+    # Client-generated (offline-first): lets a POS terminal that queued this
+    # order while offline retry the create after reconnecting without risk
+    # of double-booking the sale if the first attempt actually landed.
+    client_id = models.UUIDField(null=True, blank=True)
     opened_at = models.DateTimeField(auto_now_add=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-opened_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "client_id"], name="unique_order_client_id_per_cafe"),
+        ]
 
     def __str__(self):
         return f"Order #{self.pk} ({self.get_status_display()})"
@@ -138,9 +145,15 @@ class OrderItem(BranchModel):
     started_cooking_at = models.DateTimeField(null=True, blank=True)
     ready_at = models.DateTimeField(null=True, blank=True)
     served_at = models.DateTimeField(null=True, blank=True)
+    # Client-generated (offline-first): same idempotent-retry purpose as
+    # Order.client_id, for items added to an order while offline.
+    client_id = models.UUIDField(null=True, blank=True)
 
     class Meta:
         ordering = ["id"]
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "client_id"], name="unique_order_item_client_id_per_cafe"),
+        ]
 
     def __str__(self):
         return f"{self.quantity} x {self.menu_item.name}"
