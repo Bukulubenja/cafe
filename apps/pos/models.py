@@ -9,6 +9,9 @@ from apps.core.models import AuditLog, BranchModel
 from apps.customers.services import award_points_for_order
 from apps.inventory.services import deduct_stock_for_order_item
 from apps.menu.models import MenuItem
+from apps.notifications.services import send_receipt
+
+from .realtime import broadcast_kitchen_update
 
 
 class Table(BranchModel):
@@ -109,6 +112,7 @@ class Order(BranchModel):
             branch=self.branch, actor=actor, action="order.paid", object_repr=str(self)
         )
         award_points_for_order(self)
+        send_receipt(self)
 
     def cancel(self, actor=None):
         if self.status != self.Status.OPEN:
@@ -179,6 +183,8 @@ class OrderItem(BranchModel):
             # chef actually starts cooking them (see mark_cooking).
             if is_new and not self.requires_kitchen:
                 deduct_stock_for_order_item(self)
+        if is_new and self.requires_kitchen:
+            broadcast_kitchen_update(self)
 
     @property
     def line_subtotal(self):
@@ -205,15 +211,22 @@ class OrderItem(BranchModel):
         with transaction.atomic():
             deduct_stock_for_order_item(self)
             self._transition(self.KitchenStatus.PENDING, self.KitchenStatus.COOKING, "started_cooking_at")
+        # Broadcast only after the transaction commits -- a channel-layer
+        # send isn't transactional, so firing it inside the atomic block
+        # could notify about a change that then gets rolled back.
+        broadcast_kitchen_update(self)
 
     def mark_ready(self):
         self._transition(self.KitchenStatus.COOKING, self.KitchenStatus.READY, "ready_at")
+        broadcast_kitchen_update(self)
 
     def mark_served(self):
         self._transition(self.KitchenStatus.READY, self.KitchenStatus.SERVED, "served_at")
+        broadcast_kitchen_update(self)
 
     def cancel(self):
         if self.kitchen_status in (self.KitchenStatus.SERVED, self.KitchenStatus.CANCELLED):
             raise ValidationError("Cannot cancel an item that has already been served or cancelled.")
         self.kitchen_status = self.KitchenStatus.CANCELLED
         self.save(update_fields=["kitchen_status"])
+        broadcast_kitchen_update(self)

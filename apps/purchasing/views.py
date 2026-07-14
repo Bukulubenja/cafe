@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsManagerOrAbove
 from apps.core.utils import resolve_acting_branch
+from apps.notifications.services import send_purchase_order
 
 from .models import PurchaseOrder, PurchaseOrderLine, Supplier, SupplierLedgerEntry
 from .serializers import (
@@ -81,6 +82,14 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
             purchase_order=order, tenant=order.tenant, branch=order.branch, **serializer.validated_data
         )
         return Response(PurchaseOrderLineSerializer(line).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="notify-supplier")
+    def notify_supplier(self, request, pk=None):
+        order = self.get_object()
+        if not order.lines.exists():
+            raise DRFValidationError("Add at least one line before notifying the supplier.")
+        send_purchase_order(order)
+        return Response(PurchaseOrderSerializer(order).data)
 
     @action(detail=True, methods=["post"])
     def receive(self, request, pk=None):

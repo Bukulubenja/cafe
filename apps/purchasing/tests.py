@@ -155,6 +155,30 @@ class PurchasingApiTests(TestCase):
         resp = self.client.get("/api/purchasing/orders/")
         self.assertEqual(resp.status_code, 403)
 
+    def test_notify_supplier_sends_whatsapp_and_requires_at_least_one_line(self):
+        from apps.notifications.models import NotificationLog
+
+        self.supplier.phone = "0700999888"
+        self.supplier.save(update_fields=["phone"])
+
+        self.client.login(email="manager@javas.co", password="pw12345!")
+        resp = self.client.post("/api/purchasing/orders/", {"supplier": self.supplier.id}, format="json")
+        order_id = resp.data["id"]
+
+        resp = self.client.post(f"/api/purchasing/orders/{order_id}/notify-supplier/")
+        self.assertEqual(resp.status_code, 400)  # no lines yet
+
+        self.client.post(
+            f"/api/purchasing/orders/{order_id}/lines/",
+            {"ingredient": self.chicken.id, "quantity": "50", "unit_cost": "8000"},
+            format="json",
+        )
+        resp = self.client.post(f"/api/purchasing/orders/{order_id}/notify-supplier/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+
+        log = NotificationLog.objects.get(notification_type=NotificationLog.NotificationType.PURCHASE_ORDER)
+        self.assertEqual(log.recipient_phone, "0700999888")
+
     def test_purchase_orders_are_tenant_scoped(self):
         other_cafe = Cafe.objects.create(name="2Kings")
         other_branch = Branch.objects.create(tenant=other_cafe, name="Ntinda")

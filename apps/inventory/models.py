@@ -3,6 +3,7 @@ from django.db import models
 
 from apps.core.models import BranchModel, TenantModel
 from apps.menu.models import MenuItem
+from apps.notifications.services import send_low_stock_alert
 
 
 class Ingredient(TenantModel):
@@ -66,6 +67,21 @@ class StockItem(BranchModel):
     @property
     def is_low_stock(self):
         return self.quantity_on_hand <= self.minimum_quantity
+
+    def save(self, *args, **kwargs):
+        was_low_stock = False
+        if self.pk:
+            previous = StockItem.unscoped.filter(pk=self.pk).values("quantity_on_hand", "minimum_quantity").first()
+            if previous:
+                was_low_stock = previous["quantity_on_hand"] <= previous["minimum_quantity"]
+
+        super().save(*args, **kwargs)
+
+        # Alert only on the transition into low stock, not on every save
+        # while it stays there (e.g. several small POS deductions in a
+        # row) -- otherwise every sale after the first would spam the alert.
+        if self.is_low_stock and not was_low_stock:
+            send_low_stock_alert(self)
 
 
 class RecipeItem(TenantModel):

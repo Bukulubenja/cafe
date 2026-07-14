@@ -54,6 +54,7 @@ class User(AbstractUser):
     branch = models.ForeignKey(
         "tenants.Branch", on_delete=models.SET_NULL, null=True, blank=True, related_name="staff"
     )
+    phone = models.CharField(max_length=20, blank=True, help_text="For WhatsApp alerts (low stock, daily summary, etc.)")
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

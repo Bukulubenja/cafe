@@ -48,6 +48,26 @@ class InventoryModelTests(TestCase):
         qtys = list(StockItem.objects.values_list("quantity_on_hand", flat=True))
         self.assertEqual(qtys, [Decimal("20")])
 
+    def test_whatsapp_alert_fires_once_on_crossing_into_low_stock_not_on_every_save(self):
+        from apps.accounts.models import User
+        from apps.notifications.models import NotificationLog
+
+        User.objects.create_user(
+            email="owner@javas.co", password="pw12345!", role=User.Role.OWNER, cafe=self.cafe, phone="0700000001"
+        )
+        stock = StockItem.objects.create(
+            ingredient=self.rice, quantity_on_hand=Decimal("500"), minimum_quantity=Decimal("100")
+        )
+        self.assertEqual(NotificationLog.objects.count(), 0)  # well above minimum, no alert yet
+
+        stock.quantity_on_hand = Decimal("50")
+        stock.save()  # crosses into low stock -> alerts once
+        self.assertEqual(NotificationLog.objects.count(), 1)
+
+        stock.quantity_on_hand = Decimal("20")
+        stock.save()  # still low stock -> no repeat alert
+        self.assertEqual(NotificationLog.objects.count(), 1)
+
 
 class StockDeductionTests(TestCase):
     def setUp(self):

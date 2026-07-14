@@ -111,6 +111,20 @@ class OrderModelTests(TestCase):
         with self.assertRaises(ValidationError):
             order.mark_paid(Order.PaymentMethod.CASH)
 
+    def test_mark_paid_sends_whatsapp_receipt_to_linked_customer(self):
+        from apps.customers.models import Customer
+        from apps.notifications.models import NotificationLog
+
+        customer = Customer.objects.create(name="Amina", phone="0700111222")
+        order = Order.objects.create(table=self.table, customer=customer)
+        OrderItem.objects.create(order=order, menu_item=self.drink_item, quantity=1)
+
+        order.mark_paid(Order.PaymentMethod.CASH)
+
+        log = NotificationLog.objects.get(notification_type=NotificationLog.NotificationType.RECEIPT)
+        self.assertEqual(log.recipient_phone, "0700111222")
+        self.assertEqual(log.status, NotificationLog.Status.SENT)
+
 
 class StockDeductionIntegrationTests(TestCase):
     """Recipe-based stock deduction, wired into the kitchen ticket workflow."""

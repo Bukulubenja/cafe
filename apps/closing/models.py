@@ -5,6 +5,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.core.models import AuditLog, BranchModel
+from apps.notifications.services import send_daily_summary
 from apps.pos.models import Order
 
 
@@ -66,4 +67,5 @@ class DailyClosing(BranchModel):
             action="daily_closing.closed",
             object_repr=f"{closing} (diff: {closing.difference})",
         )
+        send_daily_summary(closing)
         return closing

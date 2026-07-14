@@ -28,6 +28,9 @@ DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = [h.strip() for h in env("DJANGO_ALLOWED_HOSTS", "").split(",") if h.strip()]
 
 INSTALLED_APPS = [
+    # Must be first: lets `manage.py runserver` transparently serve
+    # WebSockets too (Channels' documented convention), not just HTTP.
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -35,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # third party
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
@@ -54,6 +58,7 @@ INSTALLED_APPS = [
     "apps.reports",
     "apps.staff_feeding",
     "apps.payroll",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -87,6 +92,15 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
+
+# In-memory channel layer for dev/test: fine for a single process, but
+# doesn't deliver messages across multiple worker processes -- production
+# overrides this to require Redis (see settings/production.py).
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -134,3 +148,9 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [o.strip() for o in env("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+
+# No real WhatsApp Business API account/credentials exist yet -- defaults
+# to a console stub that logs what would be sent (same pattern as Django's
+# EMAIL_BACKEND). Point this at a real provider once you have one; call
+# sites in apps.notifications.services don't change.
+WHATSAPP_BACKEND = env("WHATSAPP_BACKEND", "apps.notifications.backends.ConsoleWhatsAppBackend")
