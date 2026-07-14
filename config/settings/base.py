@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.menu",
     "apps.inventory",
+    "apps.customers",
     "apps.pos",
     "apps.wastage",
     "apps.complimentary",

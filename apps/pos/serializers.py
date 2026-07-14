@@ -73,6 +73,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "payment_method",
             "created_by",
             "created_by_name",
+            "customer",
             "opened_at",
             "closed_at",
             "items",

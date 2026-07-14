@@ -6,6 +6,7 @@ from django.db import models, transaction
 from django.utils import timezone
 
 from apps.core.models import AuditLog, BranchModel
+from apps.customers.services import award_points_for_order
 from apps.inventory.services import deduct_stock_for_order_item
 from apps.menu.models import MenuItem
 
@@ -50,6 +51,9 @@ class Order(BranchModel):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
     created_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders_created"
+    )
+    customer = models.ForeignKey(
+        "customers.Customer", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
     )
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, blank=True)
     opened_at = models.DateTimeField(auto_now_add=True)
@@ -97,6 +101,7 @@ class Order(BranchModel):
         AuditLog.objects.create(
             branch=self.branch, actor=actor, action="order.paid", object_repr=str(self)
         )
+        award_points_for_order(self)
 
     def cancel(self, actor=None):
         if self.status != self.Status.OPEN:

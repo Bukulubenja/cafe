@@ -45,6 +45,9 @@ class MenuItem(TenantModel):
     prep_time_minutes = models.PositiveIntegerField(default=0)
     requires_kitchen = models.BooleanField(default=True, help_text="False for items like bottled drinks that need no preparation")
     is_available = models.BooleanField(default=True)
+    points_cost = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Loyalty points a customer can redeem for this item; blank = not redeemable"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
