@@ -62,8 +62,18 @@ class AuditLog(BranchModel):
     """Records who did what, where, and when -- the readme calls for owners
     to view audit logs and for every transaction/adjustment to be traceable
     to a staff member and branch (shift accountability).
+
+    `branch` is nullable here (overriding BranchModel) because some audited
+    actions are tenant-wide, not tied to one branch (e.g. paying a supplier).
     """
 
+    branch = models.ForeignKey(
+        "tenants.Branch",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="%(app_label)s_%(class)s_set",
+    )
     actor = models.ForeignKey(
         "accounts.User",
         on_delete=models.SET_NULL,
