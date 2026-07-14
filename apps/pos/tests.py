@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.core.context import set_current_branch, set_current_tenant
+from apps.inventory.models import Ingredient, RecipeItem, StockItem
 from apps.menu.models import Category, MenuItem
 from apps.tenants.models import Branch, Cafe
 
@@ -108,6 +109,71 @@ class OrderModelTests(TestCase):
         order.mark_paid(Order.PaymentMethod.CASH)
         with self.assertRaises(ValidationError):
             order.mark_paid(Order.PaymentMethod.CASH)
+
+
+class StockDeductionIntegrationTests(TestCase):
+    """Recipe-based stock deduction, wired into the kitchen ticket workflow."""
+
+    def setUp(self):
+        self.cafe = Cafe.objects.create(name="Javas")
+        self.branch = Branch.objects.create(tenant=self.cafe, name="Kampala Rd")
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+
+        self.category = Category.objects.create(name="Lunch")
+        self.kitchen_item = MenuItem.objects.create(
+            category=self.category, name="Chicken Pilau", selling_price=Decimal("15000")
+        )
+        self.drink_item = MenuItem.objects.create(
+            category=self.category, name="Bottled Water", selling_price=Decimal("2000"), requires_kitchen=False
+        )
+
+        self.chicken = Ingredient.objects.create(name="Chicken", unit=Ingredient.Unit.PIECE)
+        self.chicken_stock = StockItem.objects.create(ingredient=self.chicken, quantity_on_hand=Decimal("5"))
+        RecipeItem.objects.create(menu_item=self.kitchen_item, ingredient=self.chicken, quantity_required=Decimal("1"))
+
+        self.bottle = Ingredient.objects.create(name="Bottled Water 500ml", unit=Ingredient.Unit.PIECE)
+        self.bottle_stock = StockItem.objects.create(ingredient=self.bottle, quantity_on_hand=Decimal("3"))
+        RecipeItem.objects.create(menu_item=self.drink_item, ingredient=self.bottle, quantity_required=Decimal("1"))
+
+        self.table = Table.objects.create(name="T1")
+        self.order = Order.objects.create(table=self.table)
+
+    def tearDown(self):
+        set_current_tenant(None)
+        set_current_branch(None)
+
+    def test_non_kitchen_item_deducts_stock_immediately(self):
+        OrderItem.objects.create(order=self.order, menu_item=self.drink_item, quantity=2)
+        self.bottle_stock.refresh_from_db()
+        self.assertEqual(self.bottle_stock.quantity_on_hand, Decimal("1"))
+
+    def test_kitchen_item_does_not_deduct_until_cooking(self):
+        item = OrderItem.objects.create(order=self.order, menu_item=self.kitchen_item, quantity=2)
+        self.chicken_stock.refresh_from_db()
+        self.assertEqual(self.chicken_stock.quantity_on_hand, Decimal("5"))  # untouched
+
+        item.mark_cooking()
+        self.chicken_stock.refresh_from_db()
+        self.assertEqual(self.chicken_stock.quantity_on_hand, Decimal("3"))  # 5 - 2
+
+    def test_mark_cooking_fails_on_insufficient_stock_and_stays_pending(self):
+        item = OrderItem.objects.create(order=self.order, menu_item=self.kitchen_item, quantity=10)
+        with self.assertRaises(ValidationError):
+            item.mark_cooking()
+
+        item.refresh_from_db()
+        self.chicken_stock.refresh_from_db()
+        self.assertEqual(item.kitchen_status, OrderItem.KitchenStatus.PENDING)
+        self.assertEqual(self.chicken_stock.quantity_on_hand, Decimal("5"))
+
+    def test_non_kitchen_item_creation_rolls_back_on_insufficient_stock(self):
+        with self.assertRaises(ValidationError):
+            OrderItem.objects.create(order=self.order, menu_item=self.drink_item, quantity=10)
+
+        self.bottle_stock.refresh_from_db()
+        self.assertEqual(self.bottle_stock.quantity_on_hand, Decimal("3"))
+        self.assertEqual(self.order.items.count(), 0)
 
 
 class PosApiTests(TestCase):

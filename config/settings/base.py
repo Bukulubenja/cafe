@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.tenants",
     "apps.accounts",
     "apps.menu",
+    "apps.inventory",
     "apps.pos",
 ]
 

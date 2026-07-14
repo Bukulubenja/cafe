@@ -2,10 +2,11 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from apps.core.models import AuditLog, BranchModel
+from apps.inventory.services import deduct_stock_for_order_item
 from apps.menu.models import MenuItem
 
 
@@ -140,7 +141,8 @@ class OrderItem(BranchModel):
         return f"{self.quantity} x {self.menu_item.name}"
 
     def save(self, *args, **kwargs):
-        if self._state.adding:
+        is_new = self._state.adding
+        if is_new:
             # Snapshot current menu item state so historical orders stay
             # accurate even if the menu changes later.
             if not self.unit_price:
@@ -151,7 +153,14 @@ class OrderItem(BranchModel):
             if not self.requires_kitchen:
                 self.kitchen_status = self.KitchenStatus.SERVED
                 self.served_at = timezone.now()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            # Non-kitchen items (e.g. bottled drinks) skip the kitchen
+            # entirely and are served immediately, so their stock is
+            # consumed right away. Kitchen items deduct later, when the
+            # chef actually starts cooking them (see mark_cooking).
+            if is_new and not self.requires_kitchen:
+                deduct_stock_for_order_item(self)
 
     @property
     def line_subtotal(self):
@@ -171,7 +180,13 @@ class OrderItem(BranchModel):
         self.save(update_fields=["kitchen_status", timestamp_field])
 
     def mark_cooking(self):
-        self._transition(self.KitchenStatus.PENDING, self.KitchenStatus.COOKING, "started_cooking_at")
+        if self.kitchen_status != self.KitchenStatus.PENDING:
+            raise ValidationError(
+                f"Cannot move to 'cooking' from '{self.kitchen_status}'; expected 'pending'."
+            )
+        with transaction.atomic():
+            deduct_stock_for_order_item(self)
+            self._transition(self.KitchenStatus.PENDING, self.KitchenStatus.COOKING, "started_cooking_at")
 
     def mark_ready(self):
         self._transition(self.KitchenStatus.COOKING, self.KitchenStatus.READY, "ready_at")

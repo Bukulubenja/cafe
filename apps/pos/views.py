@@ -80,8 +80,12 @@ class OrderViewSet(viewsets.ModelViewSet):
         # Set tenant/branch explicitly from the order rather than relying on
         # ambient request context, since an Owner viewing "all branches" has
         # no single branch in context yet the item must land on the order's branch.
-        item = OrderItem.objects.create(
-            order=order, tenant=order.tenant, branch=order.branch, **serializer.validated_data
+        item = _run(
+            OrderItem.objects.create,
+            order=order,
+            tenant=order.tenant,
+            branch=order.branch,
+            **serializer.validated_data,
         )
         return Response(OrderItemSerializer(item).data, status=status.HTTP_201_CREATED)
 
