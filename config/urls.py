@@ -23,4 +23,6 @@ urlpatterns = [
     path('api/menu/', include('apps.menu.urls')),
     path('api/inventory/', include('apps.inventory.urls')),
     path('api/pos/', include('apps.pos.urls')),
+    path('api/wastage/', include('apps.wastage.urls')),
+    path('api/complimentary/', include('apps.complimentary.urls')),
 ]

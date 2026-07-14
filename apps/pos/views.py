@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
-from apps.tenants.models import Branch
+from apps.core.utils import resolve_acting_branch
 
 from .models import Order, OrderItem, Table
 from .permissions import CanTakePayment, KitchenPermission, OrderPermission, TablePermission
@@ -47,19 +47,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        branch = user.branch
-        if branch is None:
-            # Only an Owner (no fixed branch) hits this: they must say which
-            # branch the order belongs to; Waiters/Managers/Cashiers are
-            # always pinned to one, so `branch` is filled in for them.
-            branch_id = self.request.data.get("branch")
-            if not branch_id:
-                raise DRFValidationError(
-                    {"branch": "Required: you have no fixed branch, so specify which branch this order is for."}
-                )
-            branch = Branch.objects.filter(pk=branch_id, tenant=user.cafe).first()
-            if branch is None:
-                raise DRFValidationError({"branch": "Invalid branch for this café."})
+        branch = resolve_acting_branch(user, self.request.data)
 
         table = serializer.validated_data.get("table")
         if table is not None and table.branch_id != branch.id:

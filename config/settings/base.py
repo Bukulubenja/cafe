@@ -45,6 +45,8 @@ INSTALLED_APPS = [
     "apps.menu",
     "apps.inventory",
     "apps.pos",
+    "apps.wastage",
+    "apps.complimentary",
 ]
 
 MIDDLEWARE = [
