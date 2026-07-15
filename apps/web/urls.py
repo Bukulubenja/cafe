@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import (
+    closing_views,
     complimentary_views,
     customer_views,
     expense_views,
@@ -75,4 +76,5 @@ urlpatterns = [
     path("customers/<int:customer_id>/", customer_views.customer_detail, name="customer_detail"),
     path("customers/<int:customer_id>/redeem/", customer_views.customer_redeem, name="customer_redeem"),
     path("expenses/", expense_views.expense_list, name="expense_list"),
+    path("closing/", closing_views.closing_list, name="closing_list"),
 ]
