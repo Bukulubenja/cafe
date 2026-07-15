@@ -30,3 +30,8 @@ def resolve_branch(request):
         request.session["active_branch_id"] = branch.id
         set_current_branch(branch)
     return branch
+
+
+def friendly_error(exc):
+    """Renders a Django ValidationError as one line for a messages.error() call."""
+    return "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc)

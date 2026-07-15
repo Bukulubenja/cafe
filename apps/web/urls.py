@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import inventory_views, views
 
 app_name = "web"
 
@@ -17,4 +17,8 @@ urlpatterns = [
     path("orders/<int:order_id>/pay/", views.order_pay, name="order_pay"),
     path("orders/<int:order_id>/cancel/", views.order_cancel, name="order_cancel"),
     path("kitchen/", views.kitchen, name="kitchen"),
+    path("inventory/stock/", inventory_views.stock_list, name="stock_list"),
+    path("inventory/stock/new/", inventory_views.stock_new, name="stock_new"),
+    path("inventory/stock/<int:stock_item_id>/adjust/", inventory_views.stock_adjust, name="stock_adjust"),
+    path("inventory/ingredients/", inventory_views.ingredients, name="ingredients"),
 ]

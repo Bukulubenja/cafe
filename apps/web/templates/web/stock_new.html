@@ -1,0 +1,43 @@
+{% extends "web/base.html" %}
+{% block title %}Add stock item - Cafe ERP{% endblock %}
+{% block content %}
+<p><a href="{% url 'web:stock_list' %}">&larr; Back to stock</a></p>
+<h1>Add stock item</h1>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% elif not ingredients %}
+<p class="empty">Every ingredient already has a stock record for this branch. <a href="{% url 'web:ingredients' %}">Add a new ingredient</a> first.</p>
+{% else %}
+<div class="panel">
+  <form method="post">
+    {% csrf_token %}
+    <div class="field">
+      <label for="id_ingredient">Ingredient</label>
+      <select name="ingredient" id="id_ingredient" required>
+        {% for ing in ingredients %}
+        <option value="{{ ing.id }}">{{ ing.name }} ({{ ing.get_unit_display }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="id_quantity_on_hand">Initial quantity on hand</label>
+      <input type="number" step="0.001" name="quantity_on_hand" id="id_quantity_on_hand" value="0" min="0">
+    </div>
+    <div class="field">
+      <label for="id_minimum_quantity">Minimum stock (triggers a low-stock alert below this)</label>
+      <input type="number" step="0.001" name="minimum_quantity" id="id_minimum_quantity" value="0" min="0">
+    </div>
+    <div class="field">
+      <label for="id_buying_price">Buying price</label>
+      <input type="number" step="0.01" name="buying_price" id="id_buying_price" value="0" min="0">
+    </div>
+    <div class="field">
+      <label for="id_supplier_name">Supplier (optional)</label>
+      <input type="text" name="supplier_name" id="id_supplier_name">
+    </div>
+    <button class="btn primary" type="submit">Add to stock</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

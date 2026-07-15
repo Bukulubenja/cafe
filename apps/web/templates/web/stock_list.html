@@ -1,0 +1,47 @@
+{% extends "web/base.html" %}
+{% block title %}Stock - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Stock{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">
+  <a href="{% url 'web:ingredients' %}">Manage ingredients</a> &middot;
+  <a href="{% url 'web:stock_new' %}">+ Add stock item</a>
+</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="panel">
+  <table class="items">
+    <thead>
+      <tr><th>Ingredient</th><th>On hand</th><th>Minimum</th><th>Status</th><th>Update</th></tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.ingredient.name }}</td>
+        <td>{{ item.quantity_on_hand }} {{ item.ingredient.unit }}</td>
+        <td>{{ item.minimum_quantity }} {{ item.ingredient.unit }}</td>
+        <td>
+          {% if item.is_low_stock %}
+          <span class="kitchen-status-badge pending" style="background: var(--red-tint); color: var(--red);">Low stock</span>
+          {% else %}
+          <span class="kitchen-status-badge ready">OK</span>
+          {% endif %}
+        </td>
+        <td>
+          <form class="add-form" method="post" action="{% url 'web:stock_adjust' item.id %}">
+            {% csrf_token %}
+            <input type="number" step="0.001" name="quantity_on_hand" value="{{ item.quantity_on_hand }}" style="width: 5.5rem;" aria-label="On hand">
+            <input type="number" step="0.001" name="minimum_quantity" value="{{ item.minimum_quantity }}" style="width: 5.5rem;" aria-label="Minimum">
+            <button class="btn small" type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="empty">No stock items yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

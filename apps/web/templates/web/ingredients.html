@@ -1,0 +1,54 @@
+{% extends "web/base.html" %}
+{% block title %}Ingredients - Cafe ERP{% endblock %}
+{% block content %}
+<p><a href="{% url 'web:stock_list' %}">&larr; Back to stock</a></p>
+<h1>Ingredients</h1>
+<p class="subtitle">The shared ingredient catalog for this café -- add one here, then give it a stock quantity per branch on the Stock page.</p>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Catalog</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Name</th><th>Category</th><th>Unit</th></tr></thead>
+        <tbody>
+          {% for ing in ingredients %}
+          <tr><td>{{ ing.name }}</td><td>{{ ing.get_category_display }}</td><td>{{ ing.get_unit_display }}</td></tr>
+          {% empty %}
+          <tr><td colspan="3" class="empty">No ingredients yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Add ingredient</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_name">Name</label>
+          <input type="text" name="name" id="id_name" required>
+        </div>
+        <div class="field">
+          <label for="id_category">Category</label>
+          <select name="category" id="id_category">
+            {% for value, label in categories %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="id_unit">Unit</label>
+          <select name="unit" id="id_unit">
+            {% for value, label in units %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn primary" type="submit">Add ingredient</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

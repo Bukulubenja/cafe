@@ -13,17 +13,13 @@ from apps.pos.models import Order, OrderItem, Table
 from apps.reports.services import build_dashboard_data
 
 from .decorators import roles_required
-from .utils import resolve_branch
+from .utils import friendly_error, resolve_branch
 
 MANAGER_ROLES = (User.Role.OWNER, User.Role.MANAGER)
 FRONT_OF_HOUSE_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
 ORDER_WRITE_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER)
 PAYMENT_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
 KITCHEN_VIEW_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.CHEF, User.Role.WAITER, User.Role.CASHIER)
-
-
-def _friendly_error(exc):
-    return "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc)
 
 
 class LoginView(DjangoLoginView):
@@ -156,7 +152,7 @@ def order_add_item(request, order_id):
             branch=branch,
         )
     except DjangoValidationError as exc:
-        messages.error(request, _friendly_error(exc))
+        messages.error(request, friendly_error(exc))
     else:
         messages.success(request, f"Added {quantity} x {menu_item.name}.")
     return redirect("web:order_detail", order_id=order.id)
@@ -170,7 +166,7 @@ def order_pay(request, order_id):
     try:
         order.mark_paid(request.POST.get("payment_method"), actor=request.user)
     except DjangoValidationError as exc:
-        messages.error(request, _friendly_error(exc))
+        messages.error(request, friendly_error(exc))
     else:
         messages.success(request, "Order marked as paid.")
     return redirect("web:order_detail", order_id=order.id)
@@ -184,7 +180,7 @@ def order_cancel(request, order_id):
     try:
         order.cancel(actor=request.user)
     except DjangoValidationError as exc:
-        messages.error(request, _friendly_error(exc))
+        messages.error(request, friendly_error(exc))
     else:
         messages.success(request, "Order cancelled.")
     return redirect("web:order_detail", order_id=order.id)
