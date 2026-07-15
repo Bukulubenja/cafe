@@ -2,6 +2,7 @@
 {% block title %}Tables - Cafe ERP{% endblock %}
 {% block content %}
 <h1>{{ branch.name|default:"Tables" }}</h1>
+<p class="subtitle">Tap a table to open its order, or start a takeaway.</p>
 
 {% if not branch %}
 <p class="empty">This café has no branches configured yet.</p>
@@ -9,7 +10,7 @@
 <p>
   <form class="inline" method="post" action="{% url 'web:new_takeaway' %}">
     {% csrf_token %}
-    <button class="btn primary" type="submit">+ New Takeaway Order</button>
+    <button class="btn primary" type="submit">+ New takeaway order</button>
   </form>
 </p>
 <div class="grid">

@@ -14,6 +14,17 @@
     return window.KITCHEN_BRANCH_ID ? "?branch=" + window.KITCHEN_BRANCH_ID : "";
   }
 
+  function showToast(message) {
+    var toast = document.getElementById("kitchen-toast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.style.display = "block";
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () {
+      toast.style.display = "none";
+    }, 4000);
+  }
+
   function postAction(url) {
     fetch(url, {
       method: "POST",
@@ -22,7 +33,7 @@
     }).then(function (resp) {
       if (!resp.ok) {
         resp.json().then(function (data) {
-          alert("Action failed: " + JSON.stringify(data));
+          showToast(typeof data === "string" ? data : JSON.stringify(data));
         });
       }
     });
@@ -60,10 +71,28 @@
     return Date.now() - new Date(ticket.started_cooking_at).getTime() > DELAY_THRESHOLD_MS;
   }
 
+  function updateEmptyStates() {
+    ["pending", "cooking", "ready"].forEach(function (status) {
+      var column = document.getElementById("col-" + status);
+      if (!column) return;
+      var hasTickets = column.querySelector(".ticket") !== null;
+      var placeholder = column.querySelector(".empty");
+      if (!hasTickets && !placeholder) {
+        var p = document.createElement("p");
+        p.className = "empty";
+        p.textContent = "No tickets.";
+        column.appendChild(p);
+      } else if (hasTickets && placeholder) {
+        placeholder.remove();
+      }
+    });
+  }
+
   function renderTicket(ticket) {
     if (ticket.kitchen_status === "served" || ticket.kitchen_status === "cancelled") {
       var existing = document.getElementById("ticket-" + ticket.id);
       if (existing) existing.remove();
+      updateEmptyStates();
       return;
     }
 
@@ -86,6 +115,7 @@
 
     var column = document.getElementById("col-" + ticket.kitchen_status);
     if (column) column.appendChild(el);
+    updateEmptyStates();
   }
 
   function loadInitialQueue() {
@@ -95,6 +125,7 @@
       })
       .then(function (tickets) {
         tickets.forEach(renderTicket);
+        updateEmptyStates();
       });
   }
 

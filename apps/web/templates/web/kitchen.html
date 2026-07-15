@@ -7,19 +7,20 @@
 <p class="empty">This café has no branches configured yet.</p>
 {% else %}
 <div class="kitchen-board">
-  <div class="kitchen-col">
-    <h2>Pending</h2>
+  <div class="kitchen-col col-pending">
+    <h2><span class="dot"></span>Pending</h2>
     <div id="col-pending"></div>
   </div>
-  <div class="kitchen-col">
-    <h2>Cooking</h2>
+  <div class="kitchen-col col-cooking">
+    <h2><span class="dot"></span>Cooking</h2>
     <div id="col-cooking"></div>
   </div>
-  <div class="kitchen-col">
-    <h2>Ready</h2>
+  <div class="kitchen-col col-ready">
+    <h2><span class="dot"></span>Ready</h2>
     <div id="col-ready"></div>
   </div>
 </div>
+<div id="kitchen-toast" class="toast" style="display: none;" role="alert"></div>
 <template id="ticket-template">
   <div class="ticket">
     <strong class="t-table"></strong>
