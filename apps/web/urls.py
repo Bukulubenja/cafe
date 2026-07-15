@@ -10,6 +10,7 @@ from . import (
     menu_views,
     payroll_views,
     purchasing_views,
+    reports_views,
     views,
     wastage_views,
 )
@@ -86,4 +87,5 @@ urlpatterns = [
     path("menu/categories/<int:category_id>/toggle/", menu_views.category_toggle, name="category_toggle"),
     path("menu/items/", menu_views.menu_item_list, name="menu_item_list"),
     path("menu/items/<int:item_id>/edit/", menu_views.menu_item_edit, name="menu_item_edit"),
+    path("reports/balance-sheet/", reports_views.balance_sheet, name="balance_sheet"),
 ]

@@ -1,0 +1,63 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Balance sheet - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Balance sheet{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">Auto-generated. Assets/liabilities are approximate: current inventory value plus the latest counted cash, minus what's owed to suppliers.</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<form method="get" class="add-form" style="margin-bottom: 1.5rem;">
+  <label for="id_period_start">From</label>
+  <input type="date" name="period_start" id="id_period_start" value="{{ data.period_start|date:'Y-m-d' }}">
+  <label for="id_period_end">To</label>
+  <input type="date" name="period_end" id="id_period_end" value="{{ data.period_end|date:'Y-m-d' }}">
+  <button class="btn small" type="submit">Update</button>
+</form>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Income statement</h2>
+    <div class="panel">
+      <div class="mini-stat-row"><span>Sales</span><strong>{{ data.income.sales|floatformat:0|intcomma }} UGX</strong></div>
+      <div class="mini-stat-row"><span>Cost of goods sold</span><strong>-{{ data.income.cogs|floatformat:0|intcomma }} UGX</strong></div>
+      <div class="mini-stat-row"><span>Gross profit</span><strong>{{ data.income.gross_profit|floatformat:0|intcomma }} UGX</strong></div>
+    </div>
+    <div class="panel">
+      {% for category, amount in data.income.expenses_by_category.items %}
+      <div class="mini-stat-row"><span>{{ category }}</span><strong>-{{ amount|floatformat:0|intcomma }} UGX</strong></div>
+      {% empty %}
+      <div class="mini-stat-row"><span>No expenses this period</span><strong>0 UGX</strong></div>
+      {% endfor %}
+      <div class="mini-stat-row"><span>Payroll</span><strong>-{{ data.income.payroll|floatformat:0|intcomma }} UGX</strong></div>
+      <div class="mini-stat-row"><span>Purchases <small>(cash flow only, not a P&amp;L cost)</small></span><strong>{{ data.income.purchases|floatformat:0|intcomma }} UGX</strong></div>
+    </div>
+    <div class="panel">
+      <div class="mini-stat-row">
+        <span><strong>Net profit</strong></span>
+        <strong class="{% if data.income.net_profit < 0 %}stat-value negative{% endif %}">{{ data.income.net_profit|floatformat:0|intcomma }} UGX</strong>
+      </div>
+    </div>
+  </div>
+  <div>
+    <h2>Assets, liabilities &amp; equity</h2>
+    <div class="panel">
+      <div class="mini-stat-row"><span>Inventory value</span><strong>{{ data.assets.inventory_value|floatformat:0|intcomma }} UGX</strong></div>
+      <div class="mini-stat-row"><span>Cash on hand <small>(latest closing)</small></span><strong>{{ data.assets.cash_on_hand|floatformat:0|intcomma }} UGX</strong></div>
+      <div class="mini-stat-row"><span><strong>Total assets</strong></span><strong>{{ data.assets.total|floatformat:0|intcomma }} UGX</strong></div>
+    </div>
+    <div class="panel">
+      <div class="mini-stat-row"><span>Accounts payable <small>(owed to suppliers)</small></span><strong>{{ data.liabilities.accounts_payable|floatformat:0|intcomma }} UGX</strong></div>
+      <div class="mini-stat-row"><span><strong>Total liabilities</strong></span><strong>{{ data.liabilities.total|floatformat:0|intcomma }} UGX</strong></div>
+    </div>
+    <div class="panel">
+      <div class="mini-stat-row">
+        <span><strong>Owner equity</strong></span>
+        <strong class="{% if data.owner_equity < 0 %}stat-value negative{% endif %}">{{ data.owner_equity|floatformat:0|intcomma }} UGX</strong>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

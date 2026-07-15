@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -13,7 +13,7 @@ from apps.expenses.models import Expense
 from apps.pos.models import Order
 from apps.wastage.models import WastageRecord
 
-from .services import build_dashboard_data
+from .services import build_balance_sheet_data, build_dashboard_data
 from .utils import bucket_key
 
 PERIOD_WINDOW_DAYS = {"daily": 30, "weekly": 90, "monthly": 365}
@@ -38,6 +38,33 @@ class DashboardView(APIView):
     def get(self, request):
         data = build_dashboard_data()
         data["date"] = data["date"].isoformat()
+        return Response(data)
+
+
+class BalanceSheetView(APIView):
+    """readme's Balance Sheet: auto-generated income statement for a period
+    (default: month-to-date) plus a point-in-time assets/liabilities/equity
+    snapshot. See build_balance_sheet_data()'s docstring for what "assets"
+    and "liabilities" mean here -- this isn't full double-entry bookkeeping.
+    """
+
+    permission_classes = [IsManagerOrAbove]
+
+    def get(self, request):
+        today = timezone.localdate()
+        start_param = request.query_params.get("period_start")
+        end_param = request.query_params.get("period_end")
+        try:
+            period_start = date.fromisoformat(start_param) if start_param else today.replace(day=1)
+            period_end = date.fromisoformat(end_param) if end_param else today
+        except ValueError:
+            raise DRFValidationError({"period_start": "Must be an ISO date (YYYY-MM-DD)."})
+        if period_start > period_end:
+            raise DRFValidationError({"period_start": "Must not be after period_end."})
+
+        data = build_balance_sheet_data(period_start, period_end)
+        data["period_start"] = data["period_start"].isoformat()
+        data["period_end"] = data["period_end"].isoformat()
         return Response(data)
 
 

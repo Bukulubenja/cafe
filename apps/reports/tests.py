@@ -1,15 +1,19 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.closing.models import DailyClosing
 from apps.complimentary.models import ComplimentaryMeal
 from apps.core.context import set_current_branch, set_current_tenant
 from apps.expenses.models import Expense
 from apps.inventory.models import Ingredient, StockItem
 from apps.menu.models import Category, MenuItem
+from apps.payroll.models import PayrollRun, SalaryRecord
 from apps.pos.models import Order, OrderItem, Table
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, Supplier
 from apps.tenants.models import Branch, Cafe
 from apps.wastage.models import WastageRecord
 
@@ -181,3 +185,80 @@ class LossDetectionTests(TestCase):
         resp = self.client.get("/api/reports/loss-detection/")
         flagged = {f["ingredient"] for f in resp.data["excessive_wastage_by_ingredient"]}
         self.assertIn("Chicken", flagged)
+
+
+class BalanceSheetViewTests(TestCase):
+    def setUp(self):
+        self.cafe = Cafe.objects.create(name="Javas")
+        self.branch = Branch.objects.create(tenant=self.cafe, name="Kampala Rd")
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+
+        category = Category.objects.create(name="Lunch")
+        item = MenuItem.objects.create(
+            category=category, name="Rice", selling_price=Decimal("10000"), cost_price=Decimal("4000")
+        )
+        table = Table.objects.create(name="T1")
+        order = Order.objects.create(table=table)
+        OrderItem.objects.create(order=order, menu_item=item, quantity=1)
+        order.mark_paid(Order.PaymentMethod.CASH)
+
+        Expense.objects.create(category=Expense.Category.ELECTRICITY, amount=Decimal("2000"))
+
+        chicken = Ingredient.objects.create(name="Chicken", unit=Ingredient.Unit.PIECE)
+        StockItem.objects.create(ingredient=chicken, quantity_on_hand=Decimal("10"), buying_price=Decimal("200"))
+
+        self.waiter = User.objects.create_user(
+            email="waiter@javas.co", password="pw12345!", role=User.Role.WAITER, cafe=self.cafe, branch=self.branch
+        )
+        SalaryRecord.objects.create(staff=self.waiter, base_salary=Decimal("100000"), effective_date="2026-01-01")
+        today = timezone.localdate()
+        PayrollRun.process(self.branch, period_start=today.replace(day=1), period_end=today)
+
+        supplier = Supplier.objects.create(name="Fresh Cuts Ltd")
+        po = PurchaseOrder.objects.create(supplier=supplier)
+        PurchaseOrderLine.objects.create(purchase_order=po, ingredient=chicken, quantity=Decimal("5"), unit_cost=Decimal("1000"))
+        po.receive()  # unpaid -> supplier balance of 5000 becomes a liability
+
+        DailyClosing.close_day(self.branch, cash_counted=Decimal("15000"))
+
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.manager = User.objects.create_user(
+            email="manager@javas.co", password="pw12345!", role=User.Role.MANAGER, cafe=self.cafe, branch=self.branch
+        )
+        self.client = APIClient()
+        self.client.login(email="manager@javas.co", password="pw12345!")
+
+    def test_income_statement(self):
+        resp = self.client.get("/api/reports/balance-sheet/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        income = resp.data["income"]
+        self.assertEqual(income["sales"], Decimal("10000.00"))
+        self.assertEqual(income["cogs"], Decimal("4000.00"))
+        self.assertEqual(income["gross_profit"], Decimal("6000.00"))
+        self.assertEqual(income["total_expenses"], Decimal("2000.00"))
+        self.assertEqual(income["purchases"], Decimal("5000.00"))
+        self.assertEqual(income["payroll"], Decimal("100000.00"))
+        self.assertEqual(income["net_profit"], Decimal("-96000.00"))
+
+    def test_assets_liabilities_equity(self):
+        resp = self.client.get("/api/reports/balance-sheet/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        # 10 on hand + 5 received via the purchase order = 15, at 200 each
+        self.assertEqual(resp.data["assets"]["inventory_value"], Decimal("3000.00"))
+        self.assertEqual(resp.data["assets"]["cash_on_hand"], Decimal("15000.00"))
+        self.assertEqual(resp.data["assets"]["total"], Decimal("18000.00"))
+        self.assertEqual(resp.data["liabilities"]["accounts_payable"], Decimal("5000.00"))
+        self.assertEqual(resp.data["owner_equity"], Decimal("13000.00"))
+
+    def test_waiter_forbidden(self):
+        self.client.logout()
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.get("/api/reports/balance-sheet/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_invalid_period_rejected(self):
+        resp = self.client.get("/api/reports/balance-sheet/?period_start=2026-08-01&period_end=2026-01-01")
+        self.assertEqual(resp.status_code, 400)
