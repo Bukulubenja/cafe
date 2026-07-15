@@ -26,6 +26,7 @@ MANAGE_URL_NAMES = {
     "menu_item_list",
     "menu_item_edit",
     "balance_sheet",
+    "shift_list",
 }
 
 

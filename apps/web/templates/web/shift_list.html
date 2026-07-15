@@ -1,0 +1,41 @@
+{% extends "web/base.html" %}
+{% block title %}Shifts - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Shifts{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">Every staff member's clocked-in/out history; force-close a shift they forgot to end.</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="panel">
+  <table class="items">
+    <thead><tr><th>Staff</th><th>Clocked in</th><th>Clocked out</th><th>Action</th></tr></thead>
+    <tbody>
+      {% for shift in shifts %}
+      <tr>
+        <td>{{ shift.staff.email|default:"&mdash;" }}</td>
+        <td>{{ shift.opened_at|date:"d M Y, H:i" }}</td>
+        <td>
+          {% if shift.is_open %}
+          <span class="kitchen-status-badge cooking">Still open</span>
+          {% else %}
+          {{ shift.closed_at|date:"d M Y, H:i" }}
+          {% endif %}
+        </td>
+        <td>
+          {% if shift.is_open %}
+          <form class="inline" method="post" action="{% url 'web:shift_force_close' shift.id %}">
+            {% csrf_token %}
+            <button class="btn small danger" type="submit">Force close</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="empty">No shifts recorded yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

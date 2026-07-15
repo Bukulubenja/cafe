@@ -12,6 +12,7 @@ from . import (
     purchasing_views,
     refund_views,
     reports_views,
+    shift_views,
     views,
     wastage_views,
 )
@@ -95,4 +96,9 @@ urlpatterns = [
     path("orders/<int:order_id>/refund/", refund_views.refund_request, name="refund_request"),
     path("refunds/<int:refund_id>/approve/", refund_views.refund_approve, name="refund_approve"),
     path("refunds/<int:refund_id>/reject/", refund_views.refund_reject, name="refund_reject"),
+    path("my-shift/", shift_views.my_shift, name="my_shift"),
+    path("my-shift/clock-in/", shift_views.shift_clock_in, name="shift_clock_in"),
+    path("my-shift/<int:shift_id>/clock-out/", shift_views.shift_clock_out, name="shift_clock_out"),
+    path("shifts/", shift_views.shift_list, name="shift_list"),
+    path("shifts/<int:shift_id>/force-close/", shift_views.shift_force_close, name="shift_force_close"),
 ]

@@ -13,6 +13,7 @@ from apps.accounts.models import User
 from apps.menu.models import Category, MenuItem
 from apps.pos.models import Order, OrderItem, Refund, Table
 from apps.reports.services import build_dashboard_data
+from apps.shifts.models import Shift
 
 from .decorators import roles_required
 from .roles import FRONT_OF_HOUSE_ROLES, KITCHEN_VIEW_ROLES, MANAGER_ROLES, ORDER_WRITE_ROLES, PAYMENT_ROLES
@@ -71,6 +72,7 @@ def order_for_table(request, table_id):
             created_by=request.user,
             tenant=branch.tenant,
             branch=branch,
+            shift=Shift.current_for(request.user),
         )
         table.status = Table.Status.OCCUPIED
         table.save(update_fields=["status"])
@@ -89,6 +91,7 @@ def new_takeaway_order(request):
         created_by=request.user,
         tenant=branch.tenant,
         branch=branch,
+        shift=Shift.current_for(request.user),
     )
     return redirect("web:order_detail", order_id=order.id)
 

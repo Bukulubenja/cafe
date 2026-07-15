@@ -1,0 +1,42 @@
+{% extends "web/base.html" %}
+{% block title %}My shift - Cafe ERP{% endblock %}
+{% block content %}
+<h1>My shift{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="panel" style="max-width: 28rem;">
+  {% if current %}
+  <p>Clocked in at <strong>{{ current.opened_at|date:"d M Y, H:i" }}</strong>.</p>
+  <form method="post" action="{% url 'web:shift_clock_out' current.id %}">
+    {% csrf_token %}
+    <button class="btn danger" type="submit">Clock out</button>
+  </form>
+  {% else %}
+  <p class="empty">You're not currently clocked in.</p>
+  <form method="post" action="{% url 'web:shift_clock_in' %}">
+    {% csrf_token %}
+    <button class="btn primary" type="submit">Clock in</button>
+  </form>
+  {% endif %}
+</div>
+
+<h2>Recent shifts</h2>
+<div class="panel">
+  <table class="items">
+    <thead><tr><th>Clocked in</th><th>Clocked out</th></tr></thead>
+    <tbody>
+      {% for shift in recent %}
+      <tr>
+        <td>{{ shift.opened_at|date:"d M Y, H:i" }}</td>
+        <td>{% if shift.is_open %}<span class="kitchen-status-badge cooking">Still open</span>{% else %}{{ shift.closed_at|date:"d M Y, H:i" }}{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="2" class="empty">No shifts recorded yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

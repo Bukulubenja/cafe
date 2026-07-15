@@ -9,6 +9,7 @@ from apps.accounts.models import User
 from apps.core.context import set_current_branch, set_current_tenant
 from apps.inventory.models import Ingredient, RecipeItem, StockItem
 from apps.menu.models import Category, MenuItem
+from apps.shifts.models import Shift
 from apps.tenants.models import Branch, Cafe
 
 from .models import Order, OrderItem, Refund, Table
@@ -304,6 +305,34 @@ class PosApiTests(TestCase):
             f"/api/pos/orders/{order_id}/items/", {"menu_item": self.menu_item.id, "quantity": 1}, format="json"
         )
         self.assertEqual(resp.status_code, 400)
+
+    def test_order_created_while_clocked_in_links_to_shift(self):
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post("/api/shifts/shifts/")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        shift_id = resp.data["id"]
+
+        resp = self.client.post("/api/pos/orders/", {"table": self.table.id, "order_type": "dine_in"}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.assertEqual(order.shift_id, shift_id)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+    def test_order_created_without_clocking_in_has_no_shift(self):
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post("/api/pos/orders/", {"table": self.table.id, "order_type": "dine_in"}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.assertIsNone(order.shift_id)
+        set_current_tenant(None)
+        set_current_branch(None)
 
     def test_waiter_can_create_order_and_add_item(self):
         self.client.login(email="waiter@javas.co", password="pw12345!")

@@ -58,6 +58,12 @@ class Order(BranchModel):
     customer = models.ForeignKey(
         "customers.Customer", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
     )
+    # Shift Accountability differentiator: which of created_by's clocked-in
+    # shifts this transaction happened on, if any. Nullable -- not every
+    # deployment enforces shift clock-in, and Owner never has one.
+    shift = models.ForeignKey(
+        "shifts.Shift", on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
+    )
     payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, blank=True)
     # Client-generated (offline-first): lets a POS terminal that queued this
     # order while offline retry the create after reconnecting without risk

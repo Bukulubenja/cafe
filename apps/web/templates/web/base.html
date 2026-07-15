@@ -40,11 +40,13 @@
           <a href="{% url 'web:payroll_runs' %}">Payroll</a>
           <a href="{% url 'web:menu_item_list' %}">Menu</a>
           <a href="{% url 'web:balance_sheet' %}">Balance sheet</a>
+          <a href="{% url 'web:shift_list' %}">Shifts</a>
         </div>
       </details>
       {% endif %}
     </nav>
     <div class="who">
+      <a href="{% url 'web:my_shift' %}" class="btn small">My shift</a>
       <span>{{ user.email }}</span>
       <span class="role-badge">{{ user.get_role_display|default:"Staff" }}</span>
       <form class="inline" method="post" action="{% url 'web:logout' %}">

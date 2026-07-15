@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsManagerOrAbove
 from apps.core.utils import parse_client_id, resolve_acting_branch
+from apps.shifts.models import Shift
 
 from .models import Order, OrderItem, Refund, Table
 from .permissions import CanTakePayment, KitchenPermission, OrderPermission, RefundPermission, TablePermission
@@ -69,7 +70,10 @@ class OrderViewSet(viewsets.ModelViewSet):
         if table is not None and table.branch_id != branch.id:
             raise DRFValidationError({"table": "Table does not belong to the selected branch."})
 
-        order = serializer.save(created_by=user, tenant=branch.tenant, branch=branch, client_id=client_id)
+        current_shift = Shift.current_for(user)
+        order = serializer.save(
+            created_by=user, tenant=branch.tenant, branch=branch, client_id=client_id, shift=current_shift
+        )
         if order.table_id:
             order.table.status = Table.Status.OCCUPIED
             order.table.save(update_fields=["status"])
