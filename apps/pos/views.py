@@ -189,7 +189,7 @@ class KitchenQueueViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     @action(detail=True, methods=["post"], url_path="start-cooking")
     def start_cooking(self, request, pk=None):
         ticket = self.get_object()
-        _run(ticket.mark_cooking)
+        _run(ticket.mark_cooking, actor=request.user)
         return Response(KitchenTicketSerializer(ticket).data)
 
     @action(detail=True, methods=["post"], url_path="ready")

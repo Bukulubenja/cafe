@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
-from apps.reports.services import build_balance_sheet_data
+from apps.reports.services import build_balance_sheet_data, build_leaderboards
 
 from .decorators import roles_required
 from .roles import MANAGER_ROLES
@@ -30,3 +30,18 @@ def balance_sheet(request):
 
     data = build_balance_sheet_data(period_start, period_end) if branch else None
     return render(request, "web/balance_sheet.html", {"branch": branch, "data": data})
+
+
+@roles_required(*MANAGER_ROLES)
+def leaderboards(request):
+    branch = resolve_branch(request)
+    try:
+        window_days = int(request.GET.get("window_days", 30))
+        if window_days <= 0:
+            raise ValueError
+    except ValueError:
+        messages.error(request, "Invalid window; showing the last 30 days instead.")
+        window_days = 30
+
+    data = build_leaderboards(window_days) if branch else None
+    return render(request, "web/leaderboards.html", {"branch": branch, "data": data})

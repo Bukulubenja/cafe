@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import timedelta
 from decimal import Decimal
 
 from django.utils import timezone
@@ -10,7 +11,7 @@ from apps.expenses.models import Expense
 from apps.inventory.models import StockItem
 from apps.menu.models import MenuItem
 from apps.payroll.models import PayrollRun
-from apps.pos.models import Order, Table
+from apps.pos.models import Order, OrderItem, Table
 from apps.purchasing.models import PurchaseOrder, Supplier
 from apps.wastage.models import WastageRecord
 
@@ -182,3 +183,48 @@ def build_balance_sheet_data(period_start, period_end):
         },
         "owner_equity": owner_equity,
     }
+
+
+def build_leaderboards(window_days=30):
+    """readme's Reports > Best waiter / Fastest chef, over a rolling
+    window. Best waiter ranks by revenue from the paid orders they created
+    (order count shown alongside as a secondary stat). Fastest chef ranks
+    by average time from started-cooking to ready across the tickets they
+    cooked -- only tickets with a recorded cooked_by count, so this stays
+    empty until a chef has actually driven kitchen tickets through the API.
+    """
+    since = timezone.now() - timedelta(days=window_days)
+
+    waiter_stats = defaultdict(lambda: {"orders": 0, "revenue": Decimal("0.00")})
+    orders = Order.objects.filter(status=Order.Status.PAID, closed_at__gte=since).select_related("created_by")
+    for order in orders:
+        key = order.created_by.email if order.created_by else "unknown"
+        waiter_stats[key]["orders"] += 1
+        waiter_stats[key]["revenue"] += order.total
+    best_waiters = sorted(
+        ({"staff": staff, **stats} for staff, stats in waiter_stats.items()),
+        key=lambda s: s["revenue"],
+        reverse=True,
+    )
+
+    chef_stats = defaultdict(lambda: {"tickets": 0, "total_seconds": Decimal("0")})
+    tickets = OrderItem.objects.filter(
+        cooked_by__isnull=False, started_cooking_at__gte=since, ready_at__isnull=False
+    ).select_related("cooked_by")
+    for ticket in tickets:
+        key = ticket.cooked_by.email
+        chef_stats[key]["tickets"] += 1
+        chef_stats[key]["total_seconds"] += Decimal((ticket.ready_at - ticket.started_cooking_at).total_seconds())
+    fastest_chefs = sorted(
+        (
+            {
+                "staff": staff,
+                "tickets": stats["tickets"],
+                "avg_minutes": round(stats["total_seconds"] / stats["tickets"] / 60, 1),
+            }
+            for staff, stats in chef_stats.items()
+        ),
+        key=lambda s: s["avg_minutes"],
+    )
+
+    return {"window_days": window_days, "best_waiters": best_waiters, "fastest_chefs": fastest_chefs}

@@ -216,6 +216,11 @@ class OrderItem(BranchModel):
     started_cooking_at = models.DateTimeField(null=True, blank=True)
     ready_at = models.DateTimeField(null=True, blank=True)
     served_at = models.DateTimeField(null=True, blank=True)
+    # Which chef started cooking this ticket -- readme's Reports > "Fastest
+    # chef" leaderboard needs to attribute cook time to a specific person.
+    cooked_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
     # Client-generated (offline-first): same idempotent-retry purpose as
     # Order.client_id, for items added to an order while offline.
     client_id = models.UUIDField(null=True, blank=True)
@@ -261,23 +266,26 @@ class OrderItem(BranchModel):
     def line_vat(self):
         return (self.line_subtotal * self.vat_rate / Decimal("100")).quantize(Decimal("0.01"))
 
-    def _transition(self, expected_current, new_status, timestamp_field):
+    def _transition(self, expected_current, new_status, timestamp_field, extra_fields=()):
         if self.kitchen_status != expected_current:
             raise ValidationError(
                 f"Cannot move to '{new_status}' from '{self.kitchen_status}'; expected '{expected_current}'."
             )
         self.kitchen_status = new_status
         setattr(self, timestamp_field, timezone.now())
-        self.save(update_fields=["kitchen_status", timestamp_field])
+        self.save(update_fields=["kitchen_status", timestamp_field, *extra_fields])
 
-    def mark_cooking(self):
+    def mark_cooking(self, actor=None):
         if self.kitchen_status != self.KitchenStatus.PENDING:
             raise ValidationError(
                 f"Cannot move to 'cooking' from '{self.kitchen_status}'; expected 'pending'."
             )
         with transaction.atomic():
             deduct_stock_for_order_item(self)
-            self._transition(self.KitchenStatus.PENDING, self.KitchenStatus.COOKING, "started_cooking_at")
+            self.cooked_by = actor
+            self._transition(
+                self.KitchenStatus.PENDING, self.KitchenStatus.COOKING, "started_cooking_at", extra_fields=["cooked_by"]
+            )
         # Broadcast only after the transaction commits -- a channel-layer
         # send isn't transactional, so firing it inside the atomic block
         # could notify about a change that then gets rolled back.

@@ -324,3 +324,94 @@ class BalanceSheetViewTests(TestCase):
     def test_invalid_period_rejected(self):
         resp = self.client.get("/api/reports/balance-sheet/?period_start=2026-08-01&period_end=2026-01-01")
         self.assertEqual(resp.status_code, 400)
+
+
+class LeaderboardViewTests(TestCase):
+    def setUp(self):
+        self.cafe = Cafe.objects.create(name="Javas")
+        self.branch = Branch.objects.create(tenant=self.cafe, name="Kampala Rd")
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+
+        category = Category.objects.create(name="Lunch")
+        item = MenuItem.objects.create(
+            category=category, name="Chicken Pilau", selling_price=Decimal("15000"), vat_rate=Decimal("0")
+        )
+        table = Table.objects.create(name="T1")
+
+        self.top_waiter = User.objects.create_user(
+            email="waiter1@javas.co", password="pw12345!", role=User.Role.WAITER, cafe=self.cafe, branch=self.branch
+        )
+        self.other_waiter = User.objects.create_user(
+            email="waiter2@javas.co", password="pw12345!", role=User.Role.WAITER, cafe=self.cafe, branch=self.branch
+        )
+        self.fast_chef = User.objects.create_user(
+            email="chef1@javas.co", password="pw12345!", role=User.Role.CHEF, cafe=self.cafe, branch=self.branch
+        )
+        self.slow_chef = User.objects.create_user(
+            email="chef2@javas.co", password="pw12345!", role=User.Role.CHEF, cafe=self.cafe, branch=self.branch
+        )
+
+        # top_waiter: two paid orders (30000 total); other_waiter: one (15000)
+        for _ in range(2):
+            order = Order.objects.create(table=table, created_by=self.top_waiter)
+            OrderItem.objects.create(order=order, menu_item=item, quantity=1)
+            order.mark_paid(Order.PaymentMethod.CASH)
+        order = Order.objects.create(table=table, created_by=self.other_waiter)
+        OrderItem.objects.create(order=order, menu_item=item, quantity=1)
+        order.mark_paid(Order.PaymentMethod.CASH)
+
+        # fast_chef cooks in 5 minutes, slow_chef in 20 minutes -- a
+        # separate open order so its tickets don't retroactively inflate
+        # other_waiter's already-paid order total above
+        kitchen_order = Order.objects.create(table=table, created_by=self.other_waiter)
+        now = timezone.now()
+        fast_ticket = OrderItem.objects.create(order=kitchen_order, menu_item=item, quantity=1)
+        fast_ticket.cooked_by = self.fast_chef
+        fast_ticket.kitchen_status = OrderItem.KitchenStatus.READY
+        fast_ticket.started_cooking_at = now
+        fast_ticket.ready_at = now + timezone.timedelta(minutes=5)
+        fast_ticket.save()
+
+        slow_ticket = OrderItem.objects.create(order=kitchen_order, menu_item=item, quantity=1)
+        slow_ticket.cooked_by = self.slow_chef
+        slow_ticket.kitchen_status = OrderItem.KitchenStatus.READY
+        slow_ticket.started_cooking_at = now
+        slow_ticket.ready_at = now + timezone.timedelta(minutes=20)
+        slow_ticket.save()
+
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.manager = User.objects.create_user(
+            email="manager@javas.co", password="pw12345!", role=User.Role.MANAGER, cafe=self.cafe, branch=self.branch
+        )
+        self.client = APIClient()
+        self.client.login(email="manager@javas.co", password="pw12345!")
+
+    def test_best_waiter_ranked_by_revenue(self):
+        resp = self.client.get("/api/reports/leaderboards/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        top = resp.data["best_waiters"][0]
+        self.assertEqual(top["staff"], "waiter1@javas.co")
+        self.assertEqual(top["revenue"], Decimal("30000.00"))
+        self.assertEqual(top["orders"], 2)
+
+    def test_fastest_chef_ranked_by_average_cook_time(self):
+        resp = self.client.get("/api/reports/leaderboards/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        chefs = resp.data["fastest_chefs"]
+        self.assertEqual(chefs[0]["staff"], "chef1@javas.co")
+        self.assertEqual(chefs[0]["avg_minutes"], 5.0)
+        self.assertEqual(chefs[1]["staff"], "chef2@javas.co")
+        self.assertEqual(chefs[1]["avg_minutes"], 20.0)
+
+    def test_waiter_forbidden(self):
+        self.client.logout()
+        self.client.login(email="waiter1@javas.co", password="pw12345!")
+        resp = self.client.get("/api/reports/leaderboards/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_invalid_window_days_rejected(self):
+        resp = self.client.get("/api/reports/leaderboards/?window_days=-5")
+        self.assertEqual(resp.status_code, 400)

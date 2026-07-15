@@ -80,6 +80,16 @@ class OrderModelTests(TestCase):
         item.mark_served()
         self.assertEqual(item.kitchen_status, OrderItem.KitchenStatus.SERVED)
 
+    def test_mark_cooking_records_which_chef(self):
+        order = self._make_order()
+        item = OrderItem.objects.create(order=order, menu_item=self.kitchen_item, quantity=1)
+        chef = User.objects.create_user(
+            email="chef@javas.co", password="pw12345!", role=User.Role.CHEF, cafe=self.cafe, branch=self.branch
+        )
+        item.mark_cooking(actor=chef)
+        item.refresh_from_db()
+        self.assertEqual(item.cooked_by, chef)
+
     def test_kitchen_transition_rejects_skipping_steps(self):
         order = self._make_order()
         item = OrderItem.objects.create(order=order, menu_item=self.kitchen_item, quantity=1)

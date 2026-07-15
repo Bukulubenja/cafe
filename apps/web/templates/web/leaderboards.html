@@ -1,0 +1,43 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Leaderboards - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Leaderboards{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<p class="subtitle">Last {{ data.window_days }} days.</p>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Best waiters</h2>
+    <div class="panel">
+      {% if data.best_waiters %}
+      <ol class="ranked-list">
+        {% for entry in data.best_waiters %}
+        <li><span>{{ entry.staff }} <small>({{ entry.orders }} order{{ entry.orders|pluralize }})</small></span><strong>{{ entry.revenue|floatformat:0|intcomma }} UGX</strong></li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="empty">No paid orders in this window yet.</p>
+      {% endif %}
+    </div>
+  </div>
+  <div>
+    <h2>Fastest chefs</h2>
+    <div class="panel">
+      {% if data.fastest_chefs %}
+      <ol class="ranked-list">
+        {% for entry in data.fastest_chefs %}
+        <li><span>{{ entry.staff }} <small>({{ entry.tickets }} ticket{{ entry.tickets|pluralize }})</small></span><strong>{{ entry.avg_minutes }} min avg</strong></li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="empty">No completed kitchen tickets in this window yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -13,7 +13,7 @@ from apps.expenses.models import Expense
 from apps.pos.models import Order
 from apps.wastage.models import WastageRecord
 
-from .services import build_balance_sheet_data, build_dashboard_data
+from .services import build_balance_sheet_data, build_dashboard_data, build_leaderboards
 from .utils import bucket_key
 
 PERIOD_WINDOW_DAYS = {"daily": 30, "weekly": 90, "monthly": 365}
@@ -66,6 +66,24 @@ class BalanceSheetView(APIView):
         data["period_start"] = data["period_start"].isoformat()
         data["period_end"] = data["period_end"].isoformat()
         return Response(data)
+
+
+class LeaderboardView(APIView):
+    """readme's Reports > Best waiter / Fastest chef, over a rolling
+    window (default 30 days, ?window_days= to override).
+    """
+
+    permission_classes = [IsManagerOrAbove]
+
+    def get(self, request):
+        window_days = request.query_params.get("window_days", 30)
+        try:
+            window_days = int(window_days)
+        except (TypeError, ValueError):
+            raise DRFValidationError({"window_days": "Must be an integer."})
+        if window_days <= 0:
+            raise DRFValidationError({"window_days": "Must be positive."})
+        return Response(build_leaderboards(window_days))
 
 
 class SalesReportView(APIView):
