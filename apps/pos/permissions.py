@@ -26,6 +26,15 @@ class CanTakePayment(RolePermission):
     write_roles = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
 
 
+class RefundPermission(RolePermission):
+    """Owner/Manager/Waiter/Cashier can request and view refunds; approval
+    is gated separately by IsManagerOrAbove on the approve/reject actions,
+    matching Wastage/Complimentary meals.
+    """
+
+    read_roles = write_roles = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
+
+
 class KitchenPermission(RolePermission):
     """Chef (and Owner/Manager for oversight) drive kitchen ticket status;
     Waiter/Cashier can read the queue to know when food is ready."""

@@ -11,7 +11,7 @@ from apps.inventory.models import Ingredient, RecipeItem, StockItem
 from apps.menu.models import Category, MenuItem
 from apps.tenants.models import Branch, Cafe
 
-from .models import Order, OrderItem, Table
+from .models import Order, OrderItem, Refund, Table
 
 
 class OrderModelTests(TestCase):
@@ -317,6 +317,117 @@ class PosApiTests(TestCase):
         resp = self.client.get("/api/pos/orders/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data), 0)
+
+
+class RefundApiTests(TestCase):
+    def setUp(self):
+        self.cafe = Cafe.objects.create(name="Javas")
+        self.branch = Branch.objects.create(tenant=self.cafe, name="Kampala Rd")
+
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        category = Category.objects.create(name="Lunch")
+        self.menu_item = MenuItem.objects.create(
+            category=category, name="Chicken Pilau", selling_price=Decimal("15000")
+        )
+        table = Table.objects.create(name="T1")
+        self.paid_order = Order.objects.create(table=table)
+        OrderItem.objects.create(order=self.paid_order, menu_item=self.menu_item, quantity=1)
+        self.paid_order.mark_paid(Order.PaymentMethod.CASH)
+
+        self.open_order = Order.objects.create(order_type=Order.OrderType.TAKEAWAY)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.waiter = User.objects.create_user(
+            email="waiter@javas.co", password="pw12345!", role=User.Role.WAITER, cafe=self.cafe, branch=self.branch
+        )
+        self.manager = User.objects.create_user(
+            email="manager@javas.co", password="pw12345!", role=User.Role.MANAGER, cafe=self.cafe, branch=self.branch
+        )
+        self.chef = User.objects.create_user(
+            email="chef@javas.co", password="pw12345!", role=User.Role.CHEF, cafe=self.cafe, branch=self.branch
+        )
+        self.client = APIClient()
+
+    def test_waiter_can_request_refund_on_paid_order(self):
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post(
+            "/api/pos/refunds/",
+            {"order": self.paid_order.id, "amount": "15000.00", "reason": "quality_issue"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["status"], "pending")
+        self.assertEqual(resp.data["requested_by_email"], "waiter@javas.co")
+
+    def test_cannot_request_refund_on_open_order(self):
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post(
+            "/api/pos/refunds/",
+            {"order": self.open_order.id, "amount": "1000.00", "reason": "other"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_cannot_refund_more_than_order_total(self):
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post(
+            "/api/pos/refunds/",
+            {"order": self.paid_order.id, "amount": "99999.00", "reason": "other"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_chef_cannot_request_refund(self):
+        self.client.login(email="chef@javas.co", password="pw12345!")
+        resp = self.client.post(
+            "/api/pos/refunds/",
+            {"order": self.paid_order.id, "amount": "1000.00", "reason": "other"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_manager_approves_waiter_cannot(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        refund = Refund.objects.create(order=self.paid_order, amount=Decimal("15000.00"), reason=Refund.Reason.OTHER)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post(f"/api/pos/refunds/{refund.id}/approve/")
+        self.assertEqual(resp.status_code, 403)
+
+        self.client.logout()
+        self.client.login(email="manager@javas.co", password="pw12345!")
+        resp = self.client.post(f"/api/pos/refunds/{refund.id}/approve/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["status"], "approved")
+
+    def test_second_refund_capped_by_remaining_balance(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        first = Refund.objects.create(order=self.paid_order, amount=Decimal("10000.00"), reason=Refund.Reason.OTHER)
+        first.approve(self.manager)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        # order total is 15000; 10000 already approved, so only 5000 remains
+        resp = self.client.post(
+            "/api/pos/refunds/",
+            {"order": self.paid_order.id, "amount": "5001.00", "reason": "other"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+        resp = self.client.post(
+            "/api/pos/refunds/",
+            {"order": self.paid_order.id, "amount": "5000.00", "reason": "other"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
 
 
 class OfflineSyncIdempotencyTests(TestCase):

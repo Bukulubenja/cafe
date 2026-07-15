@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apps.menu.models import MenuItem
 
-from .models import Order, OrderItem, Table
+from .models import Order, OrderItem, Refund, Table
 
 
 class TableSerializer(serializers.ModelSerializer):
@@ -89,6 +89,31 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class PayOrderSerializer(serializers.Serializer):
     payment_method = serializers.ChoiceField(choices=Order.PaymentMethod.choices)
+
+
+class RefundSerializer(serializers.ModelSerializer):
+    order_total = serializers.DecimalField(source="order.total", max_digits=10, decimal_places=2, read_only=True)
+    requested_by_email = serializers.CharField(source="requested_by.email", read_only=True, default=None)
+    approved_by_email = serializers.CharField(source="approved_by.email", read_only=True, default=None)
+
+    class Meta:
+        model = Refund
+        fields = [
+            "id",
+            "order",
+            "order_total",
+            "amount",
+            "reason",
+            "notes",
+            "requested_by",
+            "requested_by_email",
+            "status",
+            "approved_by",
+            "approved_by_email",
+            "approved_at",
+            "created_at",
+        ]
+        read_only_fields = ["requested_by", "status", "approved_by", "approved_at", "created_at"]
 
 
 class KitchenTicketSerializer(serializers.ModelSerializer):

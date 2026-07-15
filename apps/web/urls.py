@@ -10,6 +10,7 @@ from . import (
     menu_views,
     payroll_views,
     purchasing_views,
+    refund_views,
     reports_views,
     views,
     wastage_views,
@@ -88,4 +89,8 @@ urlpatterns = [
     path("menu/items/", menu_views.menu_item_list, name="menu_item_list"),
     path("menu/items/<int:item_id>/edit/", menu_views.menu_item_edit, name="menu_item_edit"),
     path("reports/balance-sheet/", reports_views.balance_sheet, name="balance_sheet"),
+    path("refunds/", refund_views.refund_list, name="refund_list"),
+    path("orders/<int:order_id>/refund/", refund_views.refund_request, name="refund_request"),
+    path("refunds/<int:refund_id>/approve/", refund_views.refund_approve, name="refund_approve"),
+    path("refunds/<int:refund_id>/reject/", refund_views.refund_reject, name="refund_reject"),
 ]

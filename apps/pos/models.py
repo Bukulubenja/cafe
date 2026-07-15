@@ -230,3 +230,81 @@ class OrderItem(BranchModel):
         self.kitchen_status = self.KitchenStatus.CANCELLED
         self.save(update_fields=["kitchen_status"])
         broadcast_kitchen_update(self)
+
+
+class Refund(BranchModel):
+    """A refund against an already-paid order -- distinct from Order.cancel(),
+    which only applies to an order that hasn't been paid yet. The food/drink
+    has typically already been served by the time a refund is requested, so
+    unlike Wastage this does NOT restore stock; it's purely a financial
+    reversal, requiring Manager approval (readme: Manager can "Approve
+    refunds") the same way Wastage/Complimentary meals do.
+    """
+
+    class Reason(models.TextChoices):
+        WRONG_ORDER = "wrong_order", "Wrong order"
+        QUALITY_ISSUE = "quality_issue", "Quality issue"
+        CUSTOMER_COMPLAINT = "customer_complaint", "Customer complaint"
+        DUPLICATE_PAYMENT = "duplicate_payment", "Duplicate payment"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="refunds")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    reason = models.CharField(max_length=30, choices=Reason.choices)
+    notes = models.CharField(max_length=255, blank=True)
+    requested_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="refunds_requested"
+    )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    approved_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="refunds_approved"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Refund {self.amount} for {self.order} ({self.get_status_display()})"
+
+    def save(self, *args, **kwargs):
+        if self._state.adding:
+            if self.order.status != Order.Status.PAID:
+                raise ValidationError("Refunds can only be requested for a paid order.")
+            already_approved = Refund.unscoped.filter(order=self.order, status=self.Status.APPROVED).aggregate(
+                total=models.Sum("amount")
+            )["total"] or Decimal("0.00")
+            remaining = self.order.total - already_approved
+            if self.amount > remaining:
+                raise ValidationError(
+                    f"Refund amount exceeds the order's remaining refundable balance of {remaining}."
+                )
+        super().save(*args, **kwargs)
+
+    def approve(self, actor):
+        if self.status != self.Status.PENDING:
+            raise ValidationError("Only a pending refund can be approved.")
+        self.status = self.Status.APPROVED
+        self.approved_by = actor
+        self.approved_at = timezone.now()
+        self.save(update_fields=["status", "approved_by", "approved_at"])
+        AuditLog.objects.create(
+            tenant=self.tenant, branch=self.branch, actor=actor, action="refund.approved", object_repr=str(self)
+        )
+
+    def reject(self, actor):
+        if self.status != self.Status.PENDING:
+            raise ValidationError("Only a pending refund can be rejected.")
+        self.status = self.Status.REJECTED
+        self.approved_by = actor
+        self.approved_at = timezone.now()
+        self.save(update_fields=["status", "approved_by", "approved_at"])
+        AuditLog.objects.create(
+            tenant=self.tenant, branch=self.branch, actor=actor, action="refund.rejected", object_repr=str(self)
+        )

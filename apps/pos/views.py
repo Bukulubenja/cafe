@@ -4,16 +4,18 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
+from apps.accounts.permissions import IsManagerOrAbove
 from apps.core.utils import parse_client_id, resolve_acting_branch
 
-from .models import Order, OrderItem, Table
-from .permissions import CanTakePayment, KitchenPermission, OrderPermission, TablePermission
+from .models import Order, OrderItem, Refund, Table
+from .permissions import CanTakePayment, KitchenPermission, OrderPermission, RefundPermission, TablePermission
 from .serializers import (
     KitchenTicketSerializer,
     OrderItemCreateSerializer,
     OrderItemSerializer,
     OrderSerializer,
     PayOrderSerializer,
+    RefundSerializer,
     TableSerializer,
 )
 
@@ -117,6 +119,30 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = self.get_object()
         _run(order.cancel, actor=request.user)
         return Response(OrderSerializer(order).data)
+
+
+class RefundViewSet(viewsets.ModelViewSet):
+    serializer_class = RefundSerializer
+    permission_classes = [RefundPermission]
+
+    def get_queryset(self):
+        return Refund.objects.select_related("order", "requested_by", "approved_by").all()
+
+    def perform_create(self, serializer):
+        order = serializer.validated_data["order"]
+        _run(serializer.save, requested_by=self.request.user, tenant=order.tenant, branch=order.branch)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsManagerOrAbove])
+    def approve(self, request, pk=None):
+        refund = self.get_object()
+        _run(refund.approve, request.user)
+        return Response(RefundSerializer(refund).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsManagerOrAbove])
+    def reject(self, request, pk=None):
+        refund = self.get_object()
+        _run(refund.reject, request.user)
+        return Response(RefundSerializer(refund).data)
 
 
 class KitchenQueueViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

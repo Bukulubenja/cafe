@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView as DjangoLoginView
@@ -9,7 +11,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.models import User
 from apps.menu.models import Category, MenuItem
-from apps.pos.models import Order, OrderItem, Table
+from apps.pos.models import Order, OrderItem, Refund, Table
 from apps.reports.services import build_dashboard_data
 
 from .decorators import roles_required
@@ -104,6 +106,12 @@ def order_detail(request, order_id):
         for item in category.items.all():
             item.available_now = item.is_available_at(branch)
 
+    order_refunds = order.refunds.select_related("requested_by", "approved_by")
+    already_refunded = sum(
+        (r.amount for r in order_refunds if r.status == Refund.Status.APPROVED), Decimal("0.00")
+    )
+    can_take_payment = request.user.is_superuser or request.user.role in PAYMENT_ROLES
+
     return render(
         request,
         "web/order.html",
@@ -112,7 +120,11 @@ def order_detail(request, order_id):
             "categories": category_list,
             "payment_methods": Order.PaymentMethod.choices,
             "can_edit": request.user.is_superuser or request.user.role in ORDER_WRITE_ROLES,
-            "can_pay": request.user.is_superuser or request.user.role in PAYMENT_ROLES,
+            "can_pay": can_take_payment,
+            "can_request_refund": can_take_payment,
+            "refunds": order_refunds,
+            "remaining_refundable": order.total - already_refunded if order.status == Order.Status.PAID else None,
+            "refund_reasons": Refund.Reason.choices,
         },
     )
 

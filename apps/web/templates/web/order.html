@@ -94,6 +94,48 @@
 </div>
 {% endif %}
 
+{% if order.status == "paid" %}
+<div class="panel">
+  <h2>Refunds</h2>
+  {% if refunds %}
+  <table class="items">
+    <thead><tr><th>Amount</th><th>Reason</th><th>Status</th><th>Requested by</th></tr></thead>
+    <tbody>
+      {% for refund in refunds %}
+      <tr>
+        <td>{{ refund.amount }} UGX</td>
+        <td>{{ refund.get_reason_display }}{% if refund.notes %} <small>&mdash; {{ refund.notes }}</small>{% endif %}</td>
+        <td><span class="kitchen-status-badge {{ refund.status }}">{{ refund.get_status_display }}</span></td>
+        <td>{{ refund.requested_by.email|default:"&mdash;" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if can_request_refund %}
+  {% if remaining_refundable > 0 %}
+  <form method="post" action="{% url 'web:refund_request' order.id %}" style="margin-top: 0.9rem;">
+    {% csrf_token %}
+    <div class="field"><label for="id_amount">Amount (up to {{ remaining_refundable }} UGX)</label><input type="number" step="0.01" min="0.01" max="{{ remaining_refundable }}" name="amount" id="id_amount" required></div>
+    <div class="field">
+      <label for="id_reason">Reason</label>
+      <select name="reason" id="id_reason" required>
+        {% for value, label in refund_reasons %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field"><label for="id_notes">Notes</label><input type="text" name="notes" id="id_notes"></div>
+    <button class="btn danger" type="submit">Request refund</button>
+  </form>
+  {% else %}
+  <p class="empty">This order has already been fully refunded.</p>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
 <script>
   document.querySelectorAll(".qty-btn").forEach(function (btn) {
     btn.addEventListener("click", function () {

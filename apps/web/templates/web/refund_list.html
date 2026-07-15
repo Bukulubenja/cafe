@@ -1,0 +1,43 @@
+{% extends "web/base.html" %}
+{% block title %}Refunds - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Refunds{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">Requested from a paid order's detail page; a manager approves or rejects each request.</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="panel">
+  <table class="items">
+    <thead><tr><th>Order</th><th>Amount</th><th>Reason</th><th>Status</th><th>Requested by</th>{% if can_approve %}<th>Action</th>{% endif %}</tr></thead>
+    <tbody>
+      {% for refund in refunds %}
+      <tr>
+        <td><a href="{% url 'web:order_detail' refund.order_id %}">Order #{{ refund.order_id }}</a></td>
+        <td>{{ refund.amount }} UGX</td>
+        <td>{{ refund.get_reason_display }}{% if refund.notes %} <small>&mdash; {{ refund.notes }}</small>{% endif %}</td>
+        <td><span class="kitchen-status-badge {{ refund.status }}">{{ refund.get_status_display }}</span></td>
+        <td>{{ refund.requested_by.email|default:"&mdash;" }}</td>
+        {% if can_approve %}
+        <td>
+          {% if refund.status == "pending" %}
+          <form class="inline" method="post" action="{% url 'web:refund_approve' refund.id %}">
+            {% csrf_token %}
+            <button class="btn small" type="submit">Approve</button>
+          </form>
+          <form class="inline" method="post" action="{% url 'web:refund_reject' refund.id %}">
+            {% csrf_token %}
+            <button class="btn small danger" type="submit">Reject</button>
+          </form>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="empty">No refunds requested yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
