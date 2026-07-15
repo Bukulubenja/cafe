@@ -10,10 +10,12 @@ from django.views.decorators.http import require_POST
 from apps.accounts.models import User
 from apps.menu.models import Category, MenuItem
 from apps.pos.models import Order, OrderItem, Table
+from apps.reports.services import build_dashboard_data
 
 from .decorators import roles_required
 from .utils import resolve_branch
 
+MANAGER_ROLES = (User.Role.OWNER, User.Role.MANAGER)
 FRONT_OF_HOUSE_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
 ORDER_WRITE_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER)
 PAYMENT_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
@@ -28,10 +30,7 @@ class LoginView(DjangoLoginView):
     template_name = "web/login.html"
 
     def get_success_url(self):
-        user = self.request.user
-        if user.role == User.Role.CHEF:
-            return reverse("web:kitchen")
-        return reverse("web:tables")
+        return reverse("web:home")
 
 
 class LogoutView(DjangoLogoutView):
@@ -45,9 +44,19 @@ logout_view = require_POST(LogoutView.as_view())
 
 @login_required(login_url="web:login")
 def home(request):
-    if request.user.role == User.Role.CHEF:
+    user = request.user
+    if user.is_superuser or user.role in MANAGER_ROLES:
+        return redirect("web:dashboard")
+    if user.role == User.Role.CHEF:
         return redirect("web:kitchen")
     return redirect("web:tables")
+
+
+@roles_required(*MANAGER_ROLES)
+def dashboard(request):
+    branch = resolve_branch(request)
+    data = build_dashboard_data() if branch else None
+    return render(request, "web/dashboard.html", {"branch": branch, "data": data})
 
 
 @roles_required(*FRONT_OF_HOUSE_ROLES)

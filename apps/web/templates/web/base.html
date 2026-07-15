@@ -14,6 +14,9 @@
   <header class="topbar">
     <div class="brand">{{ user.cafe.name|default:"Cafe ERP" }}</div>
     <nav>
+      {% if user.is_superuser or user.role == "owner" or user.role == "manager" %}
+      <a href="{% url 'web:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
+      {% endif %}
       <a href="{% url 'web:tables' %}" class="{% if request.resolver_match.url_name == 'tables' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">Tables</a>
       <a href="{% url 'web:kitchen' %}" class="{% if request.resolver_match.url_name == 'kitchen' %}active{% endif %}">Kitchen</a>
     </nav>

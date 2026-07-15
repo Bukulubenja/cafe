@@ -1,0 +1,81 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Dashboard - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Dashboard{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">{{ data.date|date:"l, N j" }}</p>
+
+{% if not data %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="kpi-row">
+  <div class="stat-tile">
+    <div class="stat-label">Sales today</div>
+    <div class="stat-value">{{ data.sales_today|floatformat:0|intcomma }}<span class="stat-unit"> UGX</span></div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Profit today</div>
+    <div class="stat-value {% if data.profit_today < 0 %}negative{% endif %}">{{ data.profit_today|floatformat:0|intcomma }}<span class="stat-unit"> UGX</span></div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Expenses today</div>
+    <div class="stat-value">{{ data.expenses_today|floatformat:0|intcomma }}<span class="stat-unit"> UGX</span></div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Orders today</div>
+    <div class="stat-value">{{ data.orders_today }}</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Busy tables</div>
+    <div class="stat-value">{{ data.busy_tables }}<span class="stat-unit"> / {{ data.busy_tables|add:data.available_tables }}</span></div>
+  </div>
+</div>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Stock alerts</h2>
+    <div class="panel">
+      {% if data.low_stock_alerts %}
+      <ul class="alert-list">
+        {% for alert in data.low_stock_alerts %}
+        <li class="alert-item">
+          <span class="alert-icon" aria-hidden="true">&#9888;</span>
+          <span><strong>{{ alert.ingredient }}</strong> is low: {{ alert.quantity_on_hand }} on hand (minimum {{ alert.minimum_quantity }})</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty">No low-stock alerts.</p>
+      {% endif %}
+    </div>
+
+    <h2>Today's activity</h2>
+    <div class="panel">
+      <div class="mini-stat-row">
+        <span>Complimentary meals</span>
+        <strong>{{ data.complimentary_meals_today.count }} &middot; {{ data.complimentary_meals_today.cost|floatformat:0|intcomma }} UGX</strong>
+      </div>
+      <div class="mini-stat-row">
+        <span>Wastage records</span>
+        <strong>{{ data.wastage_records_today }}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <h2>Top selling items today</h2>
+    <div class="panel">
+      {% if data.top_selling_items_today %}
+      <ol class="ranked-list">
+        {% for item in data.top_selling_items_today %}
+        <li><span>{{ item.menu_item }}</span><strong>{{ item.quantity_sold }}</strong></li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="empty">No sales yet today.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
