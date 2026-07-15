@@ -1,0 +1,56 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Salaries - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Salaries{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">
+  A rate change adds a new effective-dated record rather than overwriting the old one, so past payroll runs stay explainable.
+  &middot; <a href="{% url 'web:payroll_runs' %}">Payroll runs</a>
+</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="dashboard-cols">
+  <div>
+    <h2>Current salaries</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Staff</th><th>Current salary</th><th>Effective from</th></tr></thead>
+        <tbody>
+          {% for staff, record in current_salaries %}
+          <tr>
+            <td>{{ staff.email }}</td>
+            <td>{% if record %}{{ record.base_salary|floatformat:0|intcomma }} UGX{% else %}<span class="empty">Not set</span>{% endif %}</td>
+            <td>{{ record.effective_date|default:"&mdash;" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="empty">No staff at this branch yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Set a salary</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_staff">Staff</label>
+          <select name="staff" id="id_staff" required>
+            {% for staff in staff_members %}
+            <option value="{{ staff.id }}">{{ staff.email }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="id_base_salary">Base salary (UGX)</label><input type="number" step="0.01" min="0" name="base_salary" id="id_base_salary" required></div>
+        <div class="field"><label for="id_effective_date">Effective from</label><input type="date" name="effective_date" id="id_effective_date"></div>
+        <div class="field"><label for="id_notes">Notes</label><input type="text" name="notes" id="id_notes"></div>
+        <button class="btn primary" type="submit">Set salary</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

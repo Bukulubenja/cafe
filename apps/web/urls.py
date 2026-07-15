@@ -7,6 +7,7 @@ from . import (
     expense_views,
     feeding_views,
     inventory_views,
+    payroll_views,
     purchasing_views,
     views,
     wastage_views,
@@ -77,4 +78,7 @@ urlpatterns = [
     path("customers/<int:customer_id>/redeem/", customer_views.customer_redeem, name="customer_redeem"),
     path("expenses/", expense_views.expense_list, name="expense_list"),
     path("closing/", closing_views.closing_list, name="closing_list"),
+    path("payroll/salaries/", payroll_views.salary_records, name="salary_records"),
+    path("payroll/runs/", payroll_views.payroll_runs, name="payroll_runs"),
+    path("payroll/runs/<int:run_id>/", payroll_views.payroll_run_detail, name="payroll_run_detail"),
 ]

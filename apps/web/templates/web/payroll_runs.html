@@ -1,0 +1,44 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Payroll - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Payroll{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle"><a href="{% url 'web:salary_records' %}">Manage salaries</a></p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="dashboard-cols">
+  <div>
+    <h2>Processed runs</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Period</th><th>Total paid</th><th>Processed by</th></tr></thead>
+        <tbody>
+          {% for run in runs %}
+          <tr>
+            <td><a href="{% url 'web:payroll_run_detail' run.id %}">{{ run.period_start }} &ndash; {{ run.period_end }}</a></td>
+            <td>{{ run.total_paid|floatformat:0|intcomma }} UGX</td>
+            <td>{{ run.processed_by.email|default:"&mdash;" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="empty">No payroll runs yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Process payroll</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field"><label for="id_period_start">Period start</label><input type="date" name="period_start" id="id_period_start" required></div>
+        <div class="field"><label for="id_period_end">Period end</label><input type="date" name="period_end" id="id_period_end" required></div>
+        <button class="btn primary" type="submit">Process payroll</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Payroll run - Cafe ERP{% endblock %}
+{% block content %}
+<p class="subtitle"><a href="{% url 'web:payroll_runs' %}">&larr; Back to payroll</a></p>
+<h1>Payroll {{ run.period_start }} &ndash; {{ run.period_end }}</h1>
+<p class="subtitle">Processed by {{ run.processed_by.email|default:"&mdash;" }} &middot; {{ run.total_paid|floatformat:0|intcomma }} UGX total</p>
+
+<div class="panel">
+  <table class="items">
+    <thead><tr><th>Staff</th><th>Amount</th></tr></thead>
+    <tbody>
+      {% for line in run.lines.all %}
+      <tr>
+        <td>{{ line.staff.email|default:"&mdash;" }}</td>
+        <td>{{ line.amount|floatformat:0|intcomma }} UGX</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="2" class="empty">No staff had a salary on record for this period.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

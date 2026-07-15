@@ -19,6 +19,9 @@ MANAGE_URL_NAMES = {
     "feeding_slots",
     "expense_list",
     "closing_list",
+    "salary_records",
+    "payroll_runs",
+    "payroll_run_detail",
 }
 
 
