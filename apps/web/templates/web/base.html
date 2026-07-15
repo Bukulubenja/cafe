@@ -29,7 +29,7 @@
       <a href="{% url 'web:refund_list' %}" class="{% if request.resolver_match.url_name == 'refund_list' %}active{% endif %}">Refunds</a>
       {% endif %}
       {% if user.is_superuser or user.is_owner or user.is_manager %}
-      <details class="nav-dropdown" {% if in_manage_section %}open{% endif %}>
+      <details class="nav-dropdown">
         <summary class="{% if in_manage_section %}active{% endif %}">Manage</summary>
         <div class="nav-dropdown-menu">
           <a href="{% url 'web:stock_list' %}">Inventory</a>

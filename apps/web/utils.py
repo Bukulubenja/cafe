@@ -1,3 +1,7 @@
+import csv
+
+from django.http import HttpResponse
+
 from apps.core.context import set_current_branch
 from apps.tenants.models import Branch
 
@@ -35,3 +39,15 @@ def resolve_branch(request):
 def friendly_error(exc):
     """Renders a Django ValidationError as one line for a messages.error() call."""
     return "; ".join(exc.messages) if hasattr(exc, "messages") else str(exc)
+
+
+def csv_response(filename, header, rows):
+    """A downloadable CSV for an auditor: one header row, then `rows`
+    (any iterable of iterables -- values are stringified by csv.writer).
+    """
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    writer = csv.writer(response)
+    writer.writerow(header)
+    writer.writerows(rows)
+    return response

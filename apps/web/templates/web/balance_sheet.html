@@ -14,6 +14,7 @@
   <label for="id_period_end">To</label>
   <input type="date" name="period_end" id="id_period_end" value="{{ data.period_end|date:'Y-m-d' }}">
   <button class="btn small" type="submit">Update</button>
+  <a class="btn small" href="{% url 'web:balance_sheet_download' %}?period_start={{ data.period_start|date:'Y-m-d' }}&period_end={{ data.period_end|date:'Y-m-d' }}">Download CSV</a>
 </form>
 
 <div class="dashboard-cols">

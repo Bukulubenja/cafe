@@ -3,7 +3,10 @@
 {% block title %}Expenses - Cafe ERP{% endblock %}
 {% block content %}
 <h1>Expenses{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
-<p class="subtitle">Non-purchase operating costs: electricity, water, fuel, rent, internet, gas, cleaning, repairs.</p>
+<p class="subtitle">
+  Non-purchase operating costs: electricity, water, fuel, rent, internet, gas, cleaning, repairs.
+  &middot; <a href="{% url 'web:expense_download' %}">Download CSV</a>
+</p>
 
 {% if not branch %}
 <p class="empty">This café has no branches configured yet.</p>

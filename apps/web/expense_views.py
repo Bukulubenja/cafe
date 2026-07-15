@@ -9,7 +9,7 @@ from apps.expenses.models import Expense
 
 from .decorators import roles_required
 from .roles import MANAGER_ROLES
-from .utils import friendly_error, resolve_branch
+from .utils import csv_response, friendly_error, resolve_branch
 
 
 @roles_required(*MANAGER_ROLES)
@@ -49,3 +49,18 @@ def expense_list(request):
             "categories": Expense.Category.choices,
         },
     )
+
+
+@roles_required(*MANAGER_ROLES)
+def expense_download(request):
+    branch = resolve_branch(request)
+    if branch is None:
+        messages.error(request, "This café has no branches configured yet.")
+        return redirect("web:expense_list")
+
+    expenses = Expense.objects.select_related("recorded_by")
+    rows = (
+        (e.date, e.get_category_display(), e.amount, e.notes, e.recorded_by.email if e.recorded_by else "")
+        for e in expenses
+    )
+    return csv_response(f"expenses_{branch.name}.csv", ("Date", "Category", "Amount", "Notes", "Recorded by"), rows)

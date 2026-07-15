@@ -2,7 +2,10 @@
 {% block title %}Refunds - Cafe ERP{% endblock %}
 {% block content %}
 <h1>Refunds{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
-<p class="subtitle">Requested from a paid order's detail page; a manager approves or rejects each request.</p>
+<p class="subtitle">
+  Requested from a paid order's detail page; a manager approves or rejects each request.
+  {% if can_approve %}&middot; <a href="{% url 'web:refund_download' %}">Download CSV</a>{% endif %}
+</p>
 
 {% if not branch %}
 <p class="empty">This café has no branches configured yet.</p>

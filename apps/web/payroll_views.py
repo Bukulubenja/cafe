@@ -8,7 +8,7 @@ from apps.payroll.models import PayrollRun, SalaryRecord
 
 from .decorators import roles_required
 from .roles import MANAGER_ROLES
-from .utils import friendly_error, resolve_branch
+from .utils import csv_response, friendly_error, resolve_branch
 
 
 @roles_required(*MANAGER_ROLES)
@@ -75,6 +75,30 @@ def payroll_runs(request):
 
     runs = PayrollRun.objects.select_related("processed_by") if branch else PayrollRun.objects.none()
     return render(request, "web/payroll_runs.html", {"branch": branch, "runs": runs})
+
+
+@roles_required(*MANAGER_ROLES)
+def payroll_download(request):
+    branch = resolve_branch(request)
+    if branch is None:
+        messages.error(request, "This café has no branches configured yet.")
+        return redirect("web:payroll_runs")
+
+    runs = PayrollRun.objects.select_related("processed_by").prefetch_related("lines__staff")
+    rows = (
+        (
+            run.period_start,
+            run.period_end,
+            line.staff.email if line.staff else "",
+            line.amount,
+            run.processed_by.email if run.processed_by else "",
+        )
+        for run in runs
+        for line in run.lines.all()
+    )
+    return csv_response(
+        f"payroll_{branch.name}.csv", ("Period start", "Period end", "Staff", "Amount", "Processed by"), rows
+    )
 
 
 @roles_required(*MANAGER_ROLES)

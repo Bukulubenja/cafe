@@ -9,7 +9,7 @@ from apps.closing.models import DailyClosing
 
 from .decorators import roles_required
 from .roles import MANAGER_ROLES
-from .utils import friendly_error, resolve_branch
+from .utils import csv_response, friendly_error, resolve_branch
 
 
 @roles_required(*MANAGER_ROLES)
@@ -38,4 +38,31 @@ def closing_list(request):
         request,
         "web/closing_list.html",
         {"branch": branch, "closings": closings, "already_closed_today": already_closed_today, "today": today},
+    )
+
+
+@roles_required(*MANAGER_ROLES)
+def closing_download(request):
+    branch = resolve_branch(request)
+    if branch is None:
+        messages.error(request, "This café has no branches configured yet.")
+        return redirect("web:closing_list")
+
+    closings = DailyClosing.objects.select_related("closed_by")
+    rows = (
+        (
+            c.date,
+            c.cash_expected,
+            c.cash_counted,
+            c.difference,
+            c.reason,
+            c.closed_by.email if c.closed_by else "",
+            c.closed_at,
+        )
+        for c in closings
+    )
+    return csv_response(
+        f"daily-closing_{branch.name}.csv",
+        ("Date", "Cash expected", "Cash counted", "Difference", "Reason", "Closed by", "Closed at"),
+        rows,
     )

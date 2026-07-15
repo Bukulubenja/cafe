@@ -3,7 +3,10 @@
 {% block title %}Daily closing - Cafe ERP{% endblock %}
 {% block content %}
 <h1>Daily closing{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
-<p class="subtitle">Count the cash drawer and close the day; the system computes what was expected from paid cash orders.</p>
+<p class="subtitle">
+  Count the cash drawer and close the day; the system computes what was expected from paid cash orders.
+  &middot; <a href="{% url 'web:closing_download' %}">Download CSV</a>
+</p>
 
 {% if not branch %}
 <p class="empty">This café has no branches configured yet.</p>

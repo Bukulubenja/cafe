@@ -3,7 +3,10 @@
 {% block title %}Suppliers - Cafe ERP{% endblock %}
 {% block content %}
 <h1>Suppliers</h1>
-<p class="subtitle"><a href="{% url 'web:purchase_orders' %}">View purchase orders</a></p>
+<p class="subtitle">
+  <a href="{% url 'web:purchase_orders' %}">View purchase orders</a>
+  &middot; <a href="{% url 'web:supplier_ledger_download' %}">Download ledger CSV</a>
+</p>
 
 <div class="dashboard-cols">
   <div>

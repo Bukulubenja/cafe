@@ -3,7 +3,10 @@
 {% block title %}Payroll - Cafe ERP{% endblock %}
 {% block content %}
 <h1>Payroll{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
-<p class="subtitle"><a href="{% url 'web:salary_records' %}">Manage salaries</a></p>
+<p class="subtitle">
+  <a href="{% url 'web:salary_records' %}">Manage salaries</a>
+  &middot; <a href="{% url 'web:payroll_download' %}">Download CSV</a>
+</p>
 
 {% if not branch %}
 <p class="empty">This café has no branches configured yet.</p>

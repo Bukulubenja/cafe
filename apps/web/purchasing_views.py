@@ -7,11 +7,11 @@ from django.views.decorators.http import require_POST
 
 from apps.inventory.models import Ingredient
 from apps.notifications.services import send_purchase_order
-from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, Supplier
+from apps.purchasing.models import PurchaseOrder, PurchaseOrderLine, Supplier, SupplierLedgerEntry
 
 from .decorators import roles_required
 from .roles import MANAGER_ROLES
-from .utils import friendly_error, resolve_branch
+from .utils import csv_response, friendly_error, resolve_branch
 
 
 @roles_required(*MANAGER_ROLES)
@@ -39,6 +39,33 @@ def suppliers(request):
 
     supplier_list = Supplier.objects.order_by("name") if branch else []
     return render(request, "web/suppliers.html", {"branch": branch, "suppliers": supplier_list})
+
+
+@roles_required(*MANAGER_ROLES)
+def supplier_ledger_download(request):
+    branch = resolve_branch(request)
+    if branch is None:
+        messages.error(request, "This café has no branches configured yet.")
+        return redirect("web:suppliers")
+
+    entries = SupplierLedgerEntry.objects.select_related("supplier", "purchase_order", "created_by")
+    rows = (
+        (
+            e.created_at,
+            e.supplier.name,
+            e.get_entry_type_display(),
+            e.amount,
+            e.purchase_order_id or "",
+            e.created_by.email if e.created_by else "",
+            e.notes,
+        )
+        for e in entries
+    )
+    return csv_response(
+        f"supplier-ledger_{branch.tenant.name}.csv",
+        ("Date", "Supplier", "Type", "Amount", "Purchase order", "Recorded by", "Notes"),
+        rows,
+    )
 
 
 @roles_required(*MANAGER_ROLES)

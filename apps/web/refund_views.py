@@ -9,7 +9,7 @@ from apps.pos.models import Order, Refund
 
 from .decorators import roles_required
 from .roles import MANAGER_ROLES, PAYMENT_ROLES
-from .utils import friendly_error, resolve_branch
+from .utils import csv_response, friendly_error, resolve_branch
 
 
 @roles_required(*PAYMENT_ROLES)
@@ -26,6 +26,34 @@ def refund_list(request):
             "refunds": refunds,
             "can_approve": request.user.is_superuser or request.user.role in MANAGER_ROLES,
         },
+    )
+
+
+@roles_required(*MANAGER_ROLES)
+def refund_download(request):
+    branch = resolve_branch(request)
+    if branch is None:
+        messages.error(request, "This café has no branches configured yet.")
+        return redirect("web:refund_list")
+
+    refunds = Refund.objects.select_related("order", "requested_by", "approved_by")
+    rows = (
+        (
+            r.order_id,
+            r.amount,
+            r.get_reason_display(),
+            r.get_status_display(),
+            r.requested_by.email if r.requested_by else "",
+            r.approved_by.email if r.approved_by else "",
+            r.approved_at,
+            r.created_at,
+        )
+        for r in refunds
+    )
+    return csv_response(
+        f"refunds_{branch.name}.csv",
+        ("Order", "Amount", "Reason", "Status", "Requested by", "Approved by", "Approved at", "Requested at"),
+        rows,
     )
 
 
