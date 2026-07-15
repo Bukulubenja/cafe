@@ -93,3 +93,23 @@ class MenuItem(TenantModel):
             if stock_item is None or stock_item.quantity_on_hand < recipe_item.quantity_required:
                 return False
         return True
+
+    def recipe_cost_at(self, branch):
+        """readme's Automatic Recipe Costing differentiator: what this item
+        actually costs to make right now, priced from the branch's current
+        ingredient buying prices -- as opposed to `cost_price`, a figure
+        someone set by hand that goes stale as market prices move. `None`
+        for an item with no recipe configured (nothing to price from).
+        """
+        from apps.inventory.models import StockItem
+
+        recipe_items = list(self.recipe_items.select_related("ingredient"))
+        if not recipe_items:
+            return None
+
+        total = Decimal("0.00")
+        for recipe_item in recipe_items:
+            stock_item = StockItem.unscoped.filter(branch=branch, ingredient=recipe_item.ingredient).first()
+            buying_price = stock_item.buying_price if stock_item else Decimal("0.00")
+            total += buying_price * recipe_item.quantity_required
+        return total

@@ -123,7 +123,12 @@ class PurchaseOrder(BranchModel):
                         tenant=self.tenant, branch=self.branch, ingredient=line.ingredient, quantity_on_hand=0
                     )
                 stock_item.quantity_on_hand += line.quantity
-                stock_item.save(update_fields=["quantity_on_hand", "updated_at"])
+                # Track the latest market price so recipe costing (readme's
+                # Automatic Recipe Costing differentiator) reflects what
+                # ingredients actually cost right now, not what they cost
+                # whenever the stock item happened to be first created.
+                stock_item.buying_price = line.unit_cost
+                stock_item.save(update_fields=["quantity_on_hand", "buying_price", "updated_at"])
 
             self.status = self.Status.RECEIVED
             self.approved_by = actor

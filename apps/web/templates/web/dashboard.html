@@ -49,6 +49,22 @@
       {% endif %}
     </div>
 
+    <h2>Recipe cost alerts</h2>
+    <div class="panel">
+      {% if data.recipe_cost_alerts %}
+      <ul class="alert-list">
+        {% for alert in data.recipe_cost_alerts %}
+        <li class="alert-item">
+          <span class="alert-icon" aria-hidden="true">&#9888;</span>
+          <span><strong>{{ alert.menu_item }}</strong> now costs {{ alert.actual_cost|floatformat:0|intcomma }} UGX to make (was {{ alert.assumed_cost|floatformat:0|intcomma }}) &mdash; margin down to {{ alert.actual_margin|floatformat:0|intcomma }} UGX</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="empty">No menu items are costing more than expected.</p>
+      {% endif %}
+    </div>
+
     <h2>Today's activity</h2>
     <div class="panel">
       <div class="mini-stat-row">

@@ -9,7 +9,7 @@ from apps.closing.models import DailyClosing
 from apps.complimentary.models import ComplimentaryMeal
 from apps.core.context import set_current_branch, set_current_tenant
 from apps.expenses.models import Expense
-from apps.inventory.models import Ingredient, StockItem
+from apps.inventory.models import Ingredient, RecipeItem, StockItem
 from apps.menu.models import Category, MenuItem
 from apps.payroll.models import PayrollRun, SalaryRecord
 from apps.pos.models import Order, OrderItem, Table
@@ -80,6 +80,66 @@ class DashboardViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["sales_today"], Decimal("0.00"))
         self.assertEqual(resp.data["orders_today"], 0)
+
+
+class RecipeCostAlertTests(TestCase):
+    def setUp(self):
+        self.cafe = Cafe.objects.create(name="Javas")
+        self.branch = Branch.objects.create(tenant=self.cafe, name="Kampala Rd")
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+
+        category = Category.objects.create(name="Lunch")
+        # Priced assuming Chicken costs 4000/piece; recipe uses 1 piece, so
+        # assumed cost_price is 4000. Stock's actual buying_price will be
+        # bumped past that in each test to simulate a market price rise.
+        self.pilau = MenuItem.objects.create(
+            category=category, name="Chicken Pilau", selling_price=Decimal("15000"), cost_price=Decimal("4000")
+        )
+        self.chicken = Ingredient.objects.create(name="Chicken", unit=Ingredient.Unit.PIECE)
+        RecipeItem.objects.create(menu_item=self.pilau, ingredient=self.chicken, quantity_required=Decimal("1"))
+
+        # No recipe at all -- must be silently skipped, not treated as a
+        # 0-cost item that would otherwise never trip the alert.
+        self.water = MenuItem.objects.create(
+            category=category, name="Bottled Water", selling_price=Decimal("2000"), cost_price=Decimal("800")
+        )
+
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.manager = User.objects.create_user(
+            email="manager@javas.co", password="pw12345!", role=User.Role.MANAGER, cafe=self.cafe, branch=self.branch
+        )
+        self.client = APIClient()
+        self.client.login(email="manager@javas.co", password="pw12345!")
+
+    def test_no_alert_when_market_price_has_not_risen(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        StockItem.objects.create(ingredient=self.chicken, buying_price=Decimal("4000"))
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        resp = self.client.get("/api/reports/dashboard/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["recipe_cost_alerts"], [])
+
+    def test_alert_when_market_price_has_risen_above_assumed_cost(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        StockItem.objects.create(ingredient=self.chicken, buying_price=Decimal("6000"))
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        resp = self.client.get("/api/reports/dashboard/")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        alerts = resp.data["recipe_cost_alerts"]
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]["menu_item"], "Chicken Pilau")
+        self.assertEqual(alerts[0]["assumed_cost"], Decimal("4000.00"))
+        self.assertEqual(alerts[0]["actual_cost"], Decimal("6000.00"))
+        self.assertEqual(alerts[0]["actual_margin"], Decimal("9000.00"))
 
 
 class SalesAndProfitReportTests(TestCase):
@@ -246,12 +306,14 @@ class BalanceSheetViewTests(TestCase):
     def test_assets_liabilities_equity(self):
         resp = self.client.get("/api/reports/balance-sheet/")
         self.assertEqual(resp.status_code, 200, resp.content)
-        # 10 on hand + 5 received via the purchase order = 15, at 200 each
-        self.assertEqual(resp.data["assets"]["inventory_value"], Decimal("3000.00"))
+        # 10 on hand + 5 received via the purchase order = 15, all revalued
+        # to the PO's 1000 unit cost (receive() updates buying_price to the
+        # latest market price, not just quantity_on_hand)
+        self.assertEqual(resp.data["assets"]["inventory_value"], Decimal("15000.00"))
         self.assertEqual(resp.data["assets"]["cash_on_hand"], Decimal("15000.00"))
-        self.assertEqual(resp.data["assets"]["total"], Decimal("18000.00"))
+        self.assertEqual(resp.data["assets"]["total"], Decimal("30000.00"))
         self.assertEqual(resp.data["liabilities"]["accounts_payable"], Decimal("5000.00"))
-        self.assertEqual(resp.data["owner_equity"], Decimal("13000.00"))
+        self.assertEqual(resp.data["owner_equity"], Decimal("25000.00"))
 
     def test_waiter_forbidden(self):
         self.client.logout()

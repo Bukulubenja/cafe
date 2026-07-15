@@ -5,8 +5,10 @@ from django.utils import timezone
 
 from apps.closing.models import DailyClosing
 from apps.complimentary.models import ComplimentaryMeal
+from apps.core.context import get_current_branch
 from apps.expenses.models import Expense
 from apps.inventory.models import StockItem
+from apps.menu.models import MenuItem
 from apps.payroll.models import PayrollRun
 from apps.pos.models import Order, Table
 from apps.purchasing.models import PurchaseOrder, Supplier
@@ -59,8 +61,37 @@ def build_dashboard_data():
         "available_tables": Table.objects.filter(status=Table.Status.AVAILABLE).count(),
         "top_selling_items_today": [{"menu_item": name, "quantity_sold": qty} for name, qty in top_items],
         "complimentary_meals_today": {"count": comp_today.count(), "cost": comp_cost_today},
+        "recipe_cost_alerts": build_recipe_cost_alerts(),
         "wastage_records_today": WastageRecord.objects.filter(created_at__date=today).count(),
     }
+
+
+def build_recipe_cost_alerts():
+    """readme's Automatic Recipe Costing differentiator: menu items whose
+    live recipe cost (today's branch ingredient buying prices) has drifted
+    above the manually-set `cost_price`, silently eating into the margin
+    someone assumed when they priced the item. Requires an ambient branch
+    (set by TenantMiddleware) since recipe cost is priced per branch;
+    returns [] with no branch in context.
+    """
+    branch = get_current_branch()
+    if branch is None:
+        return []
+
+    alerts = []
+    for item in MenuItem.objects.filter(is_available=True).prefetch_related("recipe_items__ingredient"):
+        live_cost = item.recipe_cost_at(branch)
+        if live_cost is not None and live_cost > item.cost_price:
+            alerts.append(
+                {
+                    "menu_item": item.name,
+                    "assumed_cost": item.cost_price,
+                    "actual_cost": live_cost,
+                    "assumed_margin": item.selling_price - item.cost_price,
+                    "actual_margin": item.selling_price - live_cost,
+                }
+            )
+    return alerts
 
 
 def build_balance_sheet_data(period_start, period_end):

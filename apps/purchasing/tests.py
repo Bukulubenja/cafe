@@ -84,6 +84,14 @@ class PurchaseOrderReceiveTests(TestCase):
         stock = StockItem.unscoped.get(branch=self.branch, ingredient=self.chicken)
         self.assertEqual(stock.quantity_on_hand, Decimal("50"))
 
+    def test_receive_updates_stock_item_buying_price_to_latest_unit_cost(self):
+        StockItem.objects.create(ingredient=self.chicken, quantity_on_hand=Decimal("20"), buying_price=Decimal("5000"))
+        order = self._make_order(quantity=Decimal("30"), unit_cost=Decimal("7500"))
+        order.receive(self.manager)
+
+        stock = StockItem.unscoped.get(branch=self.branch, ingredient=self.chicken)
+        self.assertEqual(stock.buying_price, Decimal("7500"))
+
     def test_receive_creates_supplier_ledger_entry_for_total(self):
         order = self._make_order(quantity=Decimal("100"), unit_cost=Decimal("8000"))
         order.receive(self.manager)
