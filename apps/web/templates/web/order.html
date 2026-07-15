@@ -97,6 +97,18 @@
     <button class="btn primary" type="submit">Mark paid</button>
   </form>
   {% endif %}
+  {% if can_transfer and available_tables %}
+  <form method="post" action="{% url 'web:order_transfer_table' order.id %}" class="add-form" style="margin-bottom: 0.75rem;">
+    {% csrf_token %}
+    <label for="id_table">Move to table</label>
+    <select name="table" id="id_table">
+      {% for t in available_tables %}
+      <option value="{{ t.id }}">{{ t.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn small" type="submit">Transfer</button>
+  </form>
+  {% endif %}
   {% if can_edit %}
   <form method="post" action="{% url 'web:order_cancel' order.id %}">
     {% csrf_token %}

@@ -124,6 +124,42 @@ class OrderModelTests(TestCase):
         with self.assertRaises(ValidationError):
             order.split_off([item1.id])
 
+    def test_transfer_table_moves_order_and_swaps_table_status(self):
+        table2 = Table.objects.create(name="T2")
+        self.table.status = Table.Status.OCCUPIED
+        self.table.save(update_fields=["status"])
+        order = self._make_order()
+
+        order.transfer_table(table2)
+
+        order.refresh_from_db()
+        self.table.refresh_from_db()
+        table2.refresh_from_db()
+        self.assertEqual(order.table, table2)
+        self.assertEqual(self.table.status, Table.Status.AVAILABLE)
+        self.assertEqual(table2.status, Table.Status.OCCUPIED)
+
+    def test_cannot_transfer_to_a_table_with_an_open_order(self):
+        table2 = Table.objects.create(name="T2")
+        Order.objects.create(table=table2)
+        order = self._make_order()
+        with self.assertRaises(ValidationError):
+            order.transfer_table(table2)
+
+    def test_cannot_transfer_takeaway_order(self):
+        order = Order.objects.create(order_type=Order.OrderType.TAKEAWAY)
+        table2 = Table.objects.create(name="T2")
+        with self.assertRaises(ValidationError):
+            order.transfer_table(table2)
+
+    def test_cannot_transfer_paid_order(self):
+        table2 = Table.objects.create(name="T2")
+        order = self._make_order()
+        OrderItem.objects.create(order=order, menu_item=self.drink_item, quantity=1)
+        order.mark_paid(Order.PaymentMethod.CASH)
+        with self.assertRaises(ValidationError):
+            order.transfer_table(table2)
+
     def test_mark_paid_frees_table_and_logs_audit(self):
         self.table.status = Table.Status.OCCUPIED
         self.table.save(update_fields=["status"])
@@ -300,6 +336,24 @@ class PosApiTests(TestCase):
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertEqual(resp.data["table"], self.table.id)
         self.assertEqual(len(resp.data["items"]), 1)
+
+    def test_waiter_can_transfer_table_cashier_cannot(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        table2 = Table.objects.create(name="T2")
+        order = Order.objects.create(table=self.table, created_by=self.waiter)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.client.login(email="cashier@javas.co", password="pw12345!")
+        resp = self.client.post(f"/api/pos/orders/{order.id}/transfer-table/", {"table": table2.id}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+        self.client.logout()
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post(f"/api/pos/orders/{order.id}/transfer-table/", {"table": table2.id}, format="json")
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data["table"], table2.id)
 
     def test_cashier_can_take_payment_but_not_create_order(self):
         set_current_tenant(self.cafe)

@@ -111,6 +111,10 @@ def order_detail(request, order_id):
         (r.amount for r in order_refunds if r.status == Refund.Status.APPROVED), Decimal("0.00")
     )
     can_take_payment = request.user.is_superuser or request.user.role in PAYMENT_ROLES
+    can_edit_order = request.user.is_superuser or request.user.role in ORDER_WRITE_ROLES
+    can_transfer = (
+        order.status == Order.Status.OPEN and order.order_type == Order.OrderType.DINE_IN and can_edit_order
+    )
 
     return render(
         request,
@@ -119,14 +123,16 @@ def order_detail(request, order_id):
             "order": order,
             "categories": category_list,
             "payment_methods": Order.PaymentMethod.choices,
-            "can_edit": request.user.is_superuser or request.user.role in ORDER_WRITE_ROLES,
+            "can_edit": can_edit_order,
             "can_split": (
-                order.status == Order.Status.OPEN
-                and (request.user.is_superuser or request.user.role in ORDER_WRITE_ROLES)
-                and order.active_items.count() > 1
+                order.status == Order.Status.OPEN and can_edit_order and order.active_items.count() > 1
             ),
             "can_pay": can_take_payment,
             "can_request_refund": can_take_payment,
+            "can_transfer": can_transfer,
+            "available_tables": (
+                Table.objects.filter(branch=branch, status=Table.Status.AVAILABLE) if can_transfer else []
+            ),
             "refunds": order_refunds,
             "remaining_refundable": order.total - already_refunded if order.status == Order.Status.PAID else None,
             "refund_reasons": Refund.Reason.choices,
@@ -211,6 +217,21 @@ def order_split(request, order_id):
         return redirect("web:order_detail", order_id=order.id)
     messages.success(request, f"Split off {new_order.active_items.count()} item(s) into Order #{new_order.id}.")
     return redirect("web:order_detail", order_id=new_order.id)
+
+
+@roles_required(*ORDER_WRITE_ROLES)
+@require_POST
+def order_transfer_table(request, order_id):
+    branch = resolve_branch(request)
+    order = get_object_or_404(Order, pk=order_id, branch=branch)
+    new_table = get_object_or_404(Table, pk=request.POST.get("table"), branch=branch)
+    try:
+        order.transfer_table(new_table, actor=request.user)
+    except DjangoValidationError as exc:
+        messages.error(request, friendly_error(exc))
+    else:
+        messages.success(request, f"Moved order to {new_table.name}.")
+    return redirect("web:order_detail", order_id=order.id)
 
 
 @roles_required(*KITCHEN_VIEW_ROLES)

@@ -127,6 +127,37 @@ class Order(BranchModel):
             branch=self.branch, actor=actor, action="order.cancelled", object_repr=str(self)
         )
 
+    def transfer_table(self, new_table, actor=None):
+        """Move a dine-in order to a different table (readme: Waiter can
+        "Transfer tables") -- e.g. a party asks to move, or two small
+        tables need consolidating onto a bigger one.
+        """
+        if self.status != self.Status.OPEN:
+            raise ValidationError("Only an open order can be transferred.")
+        if self.order_type != self.OrderType.DINE_IN or self.table_id is None:
+            raise ValidationError("Only a dine-in order can be transferred to another table.")
+        if new_table.id == self.table_id:
+            raise ValidationError("Order is already at that table.")
+        if new_table.branch_id != self.branch_id:
+            raise ValidationError("Table does not belong to this order's branch.")
+        if Order.objects.filter(table=new_table, status=self.Status.OPEN).exists():
+            raise ValidationError(f"{new_table.name} already has an open order.")
+
+        with transaction.atomic():
+            old_table = self.table
+            self.table = new_table
+            self.save(update_fields=["table"])
+            new_table.status = Table.Status.OCCUPIED
+            new_table.save(update_fields=["status"])
+            old_table.status = Table.Status.AVAILABLE
+            old_table.save(update_fields=["status"])
+        AuditLog.objects.create(
+            branch=self.branch,
+            actor=actor,
+            action="order.table_transferred",
+            object_repr=f"{self}: {old_table.name} -> {new_table.name}",
+        )
+
     def split_off(self, item_ids, actor=None):
         """Move the given order items onto a new order for separate payment
         (readme: Waiter can "Split bills"). Whole order-item lines move

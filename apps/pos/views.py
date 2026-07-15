@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -126,6 +127,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         item_ids = request.data.get("item_ids", [])
         new_order = _run(order.split_off, item_ids, actor=request.user)
         return Response(OrderSerializer(new_order).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="transfer-table")
+    def transfer_table(self, request, pk=None):
+        order = self.get_object()
+        new_table = get_object_or_404(Table, pk=request.data.get("table"), tenant=order.tenant)
+        _run(order.transfer_table, new_table, actor=request.user)
+        return Response(OrderSerializer(order).data)
 
 
 class RefundViewSet(viewsets.ModelViewSet):
