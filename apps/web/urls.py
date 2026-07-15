@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import inventory_views, purchasing_views, views, wastage_views
+from . import complimentary_views, inventory_views, purchasing_views, views, wastage_views
 
 app_name = "web"
 
@@ -49,4 +49,15 @@ urlpatterns = [
     path("wastage/", wastage_views.wastage_list, name="wastage_list"),
     path("wastage/<int:record_id>/approve/", wastage_views.wastage_approve, name="wastage_approve"),
     path("wastage/<int:record_id>/reject/", wastage_views.wastage_reject, name="wastage_reject"),
+    path("complimentary/", complimentary_views.complimentary_list, name="complimentary_list"),
+    path(
+        "complimentary/<int:meal_id>/approve/",
+        complimentary_views.complimentary_approve,
+        name="complimentary_approve",
+    ),
+    path(
+        "complimentary/<int:meal_id>/reject/",
+        complimentary_views.complimentary_reject,
+        name="complimentary_reject",
+    ),
 ]

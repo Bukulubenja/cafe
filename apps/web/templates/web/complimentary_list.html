@@ -1,0 +1,86 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Complimentary meals - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Complimentary meals{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">Stock is only deducted once a manager approves the request.</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="dashboard-cols">
+  <div>
+    <h2>Recent requests</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Item</th><th>Qty</th><th>For</th><th>Reason</th><th>Status</th>{% if can_approve %}<th>Action</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for meal in meals %}
+          <tr>
+            <td>{{ meal.menu_item.name }}</td>
+            <td>{{ meal.quantity }}</td>
+            <td>{{ meal.staff.email|default:meal.department|default:"&mdash;" }}</td>
+            <td>{{ meal.get_reason_display }}{% if meal.notes %} <small>&mdash; {{ meal.notes }}</small>{% endif %}</td>
+            <td><span class="kitchen-status-badge {{ meal.status }}">{{ meal.get_status_display }}</span></td>
+            {% if can_approve %}
+            <td>
+              {% if meal.status == "pending" %}
+              <form class="inline" method="post" action="{% url 'web:complimentary_approve' meal.id %}">
+                {% csrf_token %}
+                <button class="btn small" type="submit">Approve</button>
+              </form>
+              <form class="inline" method="post" action="{% url 'web:complimentary_reject' meal.id %}">
+                {% csrf_token %}
+                <button class="btn small danger" type="submit">Reject</button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="empty">No complimentary meals logged yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Log a complimentary meal</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_menu_item">Menu item</label>
+          <select name="menu_item" id="id_menu_item" required>
+            {% for item in menu_items %}
+            <option value="{{ item.id }}">{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="id_quantity">Quantity</label><input type="number" min="1" value="1" name="quantity" id="id_quantity" required></div>
+        <div class="field">
+          <label for="id_reason">Reason</label>
+          <select name="reason" id="id_reason" required>
+            {% for value, label in reasons %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="id_staff">Staff member (optional)</label>
+          <select name="staff" id="id_staff">
+            <option value="">&mdash;</option>
+            {% for member in staff_members %}
+            <option value="{{ member.id }}">{{ member.email }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="id_department">Department (if not a specific staff member)</label><input type="text" name="department" id="id_department"></div>
+        <div class="field"><label for="id_notes">Notes</label><input type="text" name="notes" id="id_notes"></div>
+        <button class="btn primary" type="submit">Log complimentary meal</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
