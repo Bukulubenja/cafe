@@ -1,0 +1,64 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Menu items - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Menu items</h1>
+<p class="subtitle"><a href="{% url 'web:category_list' %}">Manage categories</a></p>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Items</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Name</th><th>Category</th><th>Price</th><th>Status</th><th>Edit</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.category.name }}</td>
+            <td>{{ item.selling_price|floatformat:0|intcomma }} UGX</td>
+            <td>
+              {% if item.is_available %}
+              <span class="kitchen-status-badge ready">Available</span>
+              {% else %}
+              <span class="kitchen-status-badge pending">Off menu</span>
+              {% endif %}
+            </td>
+            <td><a href="{% url 'web:menu_item_edit' item.id %}">Edit</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="empty">No menu items yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Add item</h2>
+    <div class="panel">
+      {% if not categories %}
+      <p class="empty">Add an active category first.</p>
+      {% else %}
+      <form method="post">
+        {% csrf_token %}
+        <div class="field"><label for="id_name">Name</label><input type="text" name="name" id="id_name" required></div>
+        <div class="field">
+          <label for="id_category">Category</label>
+          <select name="category" id="id_category" required>
+            {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="id_selling_price">Selling price (UGX)</label><input type="number" step="0.01" min="0" name="selling_price" id="id_selling_price" required></div>
+        <div class="field"><label for="id_cost_price">Cost price (UGX)</label><input type="number" step="0.01" min="0" name="cost_price" id="id_cost_price" value="0"></div>
+        <div class="field"><label for="id_prep_time_minutes">Prep time (minutes)</label><input type="number" min="0" name="prep_time_minutes" id="id_prep_time_minutes" value="0"></div>
+        <div class="field"><label for="id_description">Description</label><input type="text" name="description" id="id_description"></div>
+        <div class="field checkbox"><label><input type="checkbox" name="requires_kitchen" checked> Requires kitchen prep</label></div>
+        <button class="btn primary" type="submit">Add item</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

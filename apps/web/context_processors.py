@@ -22,6 +22,9 @@ MANAGE_URL_NAMES = {
     "salary_records",
     "payroll_runs",
     "payroll_run_detail",
+    "category_list",
+    "menu_item_list",
+    "menu_item_edit",
 }
 
 

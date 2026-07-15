@@ -401,6 +401,8 @@ table.items td small { color: var(--muted); }
   box-shadow: 0 0 0 3px var(--brand-tint);
   outline: none;
 }
+.field.checkbox label { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; color: var(--text); }
+.field.checkbox input[type="checkbox"] { width: auto; min-height: 0; }
 
 /* -- Messages ----------------------------------------------------------- */
 

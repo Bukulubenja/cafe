@@ -1,0 +1,51 @@
+{% extends "web/base.html" %}
+{% block title %}Menu categories - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Menu categories</h1>
+<p class="subtitle"><a href="{% url 'web:menu_item_list' %}">Manage menu items</a></p>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Categories</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Name</th><th>Sort order</th><th>Status</th><th>Toggle</th></tr></thead>
+        <tbody>
+          {% for category in categories %}
+          <tr>
+            <td>{{ category.name }}</td>
+            <td>{{ category.sort_order }}</td>
+            <td>
+              {% if category.is_active %}
+              <span class="kitchen-status-badge ready">Active</span>
+              {% else %}
+              <span class="kitchen-status-badge pending">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              <form class="inline" method="post" action="{% url 'web:category_toggle' category.id %}">
+                {% csrf_token %}
+                <button class="btn small" type="submit">{% if category.is_active %}Deactivate{% else %}Activate{% endif %}</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="empty">No categories yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Add category</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field"><label for="id_name">Name</label><input type="text" name="name" id="id_name" required></div>
+        <div class="field"><label for="id_sort_order">Sort order</label><input type="number" name="sort_order" id="id_sort_order" value="0"></div>
+        <button class="btn primary" type="submit">Add category</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

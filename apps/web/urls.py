@@ -7,6 +7,7 @@ from . import (
     expense_views,
     feeding_views,
     inventory_views,
+    menu_views,
     payroll_views,
     purchasing_views,
     views,
@@ -81,4 +82,8 @@ urlpatterns = [
     path("payroll/salaries/", payroll_views.salary_records, name="salary_records"),
     path("payroll/runs/", payroll_views.payroll_runs, name="payroll_runs"),
     path("payroll/runs/<int:run_id>/", payroll_views.payroll_run_detail, name="payroll_run_detail"),
+    path("menu/categories/", menu_views.category_list, name="category_list"),
+    path("menu/categories/<int:category_id>/toggle/", menu_views.category_toggle, name="category_toggle"),
+    path("menu/items/", menu_views.menu_item_list, name="menu_item_list"),
+    path("menu/items/<int:item_id>/edit/", menu_views.menu_item_edit, name="menu_item_edit"),
 ]
