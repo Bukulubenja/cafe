@@ -1,0 +1,47 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Customers - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Customers</h1>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Search</h2>
+    <div class="panel">
+      <form method="get" class="add-form">
+        <input type="text" name="q" value="{{ query }}" placeholder="Name or phone" style="flex: 1;">
+        <button class="btn small" type="submit">Search</button>
+      </form>
+      <table class="items">
+        <thead><tr><th>Name</th><th>Phone</th><th>Visits</th><th>Total spent</th><th>Points</th></tr></thead>
+        <tbody>
+          {% for customer in customers %}
+          <tr>
+            <td><a href="{% url 'web:customer_detail' customer.id %}">{{ customer.name }}</a></td>
+            <td>{{ customer.phone }}</td>
+            <td>{{ customer.visit_count }}</td>
+            <td>{{ customer.total_spent|floatformat:0|intcomma }} UGX</td>
+            <td>{{ customer.loyalty_points_balance }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="empty">No customers found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Add customer</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field"><label for="id_name">Name</label><input type="text" name="name" id="id_name" required></div>
+        <div class="field"><label for="id_phone">Phone</label><input type="text" name="phone" id="id_phone" required></div>
+        <div class="field"><label for="id_email">Email</label><input type="email" name="email" id="id_email"></div>
+        <div class="field"><label for="id_birthday">Birthday</label><input type="date" name="birthday" id="id_birthday"></div>
+        <button class="btn primary" type="submit">Add customer</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

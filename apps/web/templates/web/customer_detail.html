@@ -1,0 +1,67 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}{{ customer.name }} - Cafe ERP{% endblock %}
+{% block content %}
+<p class="subtitle"><a href="{% url 'web:customer_list' %}">&larr; Back to customers</a></p>
+<h1>{{ customer.name }}</h1>
+<p class="subtitle">{{ customer.phone }}{% if customer.email %} &middot; {{ customer.email }}{% endif %}</p>
+
+<div class="kpi-row">
+  <div class="stat-tile">
+    <div class="stat-label">Visits</div>
+    <div class="stat-value">{{ customer.visit_count }}</div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Total spent</div>
+    <div class="stat-value">{{ customer.total_spent|floatformat:0|intcomma }}<span class="stat-unit"> UGX</span></div>
+  </div>
+  <div class="stat-tile">
+    <div class="stat-label">Points balance</div>
+    <div class="stat-value">{{ customer.loyalty_points_balance }}</div>
+  </div>
+</div>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Loyalty history</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Date</th><th>Type</th><th>Points</th><th>Item</th></tr></thead>
+        <tbody>
+          {% for tx in transactions %}
+          <tr>
+            <td>{{ tx.created_at|date:"d M Y" }}</td>
+            <td>{{ tx.get_transaction_type_display }}</td>
+            <td>{% if tx.transaction_type == "earn" %}+{% else %}-{% endif %}{{ tx.points }}</td>
+            <td>{{ tx.menu_item.name|default:"&mdash;" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="empty">No loyalty activity yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Redeem points</h2>
+    <div class="panel">
+      {% if redeemable_items %}
+      <form method="post" action="{% url 'web:customer_redeem' customer.id %}">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_menu_item">Item</label>
+          <select name="menu_item" id="id_menu_item" required>
+            {% for item in redeemable_items %}
+            <option value="{{ item.id }}">{{ item.name }} ({{ item.points_cost }} pts)</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn primary" type="submit">Redeem</button>
+      </form>
+      {% else %}
+      <p class="empty">No menu items are set up for point redemption yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

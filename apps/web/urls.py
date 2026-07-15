@@ -1,6 +1,14 @@
 from django.urls import path
 
-from . import complimentary_views, feeding_views, inventory_views, purchasing_views, views, wastage_views
+from . import (
+    complimentary_views,
+    customer_views,
+    feeding_views,
+    inventory_views,
+    purchasing_views,
+    views,
+    wastage_views,
+)
 
 app_name = "web"
 
@@ -62,4 +70,7 @@ urlpatterns = [
     ),
     path("feeding/", feeding_views.feeding_list, name="feeding_list"),
     path("feeding/slots/", feeding_views.feeding_slots, name="feeding_slots"),
+    path("customers/", customer_views.customer_list, name="customer_list"),
+    path("customers/<int:customer_id>/", customer_views.customer_detail, name="customer_detail"),
+    path("customers/<int:customer_id>/redeem/", customer_views.customer_redeem, name="customer_redeem"),
 ]
