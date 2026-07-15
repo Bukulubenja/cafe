@@ -105,6 +105,44 @@ header.topbar nav a {
 header.topbar nav a:hover { color: var(--text); background: var(--bg); }
 header.topbar nav a.active { color: var(--brand); background: var(--brand-tint); }
 
+.nav-dropdown { position: relative; }
+.nav-dropdown summary {
+  list-style: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 500;
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius-sm);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+.nav-dropdown summary::-webkit-details-marker { display: none; }
+.nav-dropdown summary:hover { color: var(--text); background: var(--bg); }
+.nav-dropdown summary.active { color: var(--brand); background: var(--brand-tint); }
+.nav-dropdown summary::after { content: " \25BE"; font-size: 0.75em; }
+.nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 0.35rem;
+  z-index: 20;
+}
+.nav-dropdown-menu a {
+  display: block;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.nav-dropdown-menu a:hover { background: var(--bg); }
+
 header.topbar .who {
   display: flex;
   align-items: center;

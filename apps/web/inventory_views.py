@@ -3,13 +3,11 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from apps.accounts.models import User
 from apps.inventory.models import Ingredient, StockItem
 
 from .decorators import roles_required
+from .roles import MANAGER_ROLES
 from .utils import friendly_error, resolve_branch
-
-MANAGER_ROLES = (User.Role.OWNER, User.Role.MANAGER)
 
 
 @roles_required(*MANAGER_ROLES)

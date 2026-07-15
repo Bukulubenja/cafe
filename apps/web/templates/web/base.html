@@ -14,13 +14,19 @@
   <header class="topbar">
     <div class="brand">{{ user.cafe.name|default:"Cafe ERP" }}</div>
     <nav>
-      {% if user.is_superuser or user.role == "owner" or user.role == "manager" %}
+      {% if user.is_superuser or user.is_owner or user.is_manager %}
       <a href="{% url 'web:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
       {% endif %}
       <a href="{% url 'web:tables' %}" class="{% if request.resolver_match.url_name == 'tables' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">Tables</a>
       <a href="{% url 'web:kitchen' %}" class="{% if request.resolver_match.url_name == 'kitchen' %}active{% endif %}">Kitchen</a>
-      {% if user.is_superuser or user.role == "owner" or user.role == "manager" %}
-      <a href="{% url 'web:stock_list' %}" class="{% if request.resolver_match.url_name == 'stock_list' or request.resolver_match.url_name == 'stock_new' or request.resolver_match.url_name == 'ingredients' %}active{% endif %}">Inventory</a>
+      {% if user.is_superuser or user.is_owner or user.is_manager %}
+      <details class="nav-dropdown" {% if in_manage_section %}open{% endif %}>
+        <summary class="{% if in_manage_section %}active{% endif %}">Manage</summary>
+        <div class="nav-dropdown-menu">
+          <a href="{% url 'web:stock_list' %}">Inventory</a>
+          <a href="{% url 'web:purchase_orders' %}">Purchasing</a>
+        </div>
+      </details>
       {% endif %}
     </nav>
     <div class="who">

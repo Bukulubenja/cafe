@@ -13,13 +13,8 @@ from apps.pos.models import Order, OrderItem, Table
 from apps.reports.services import build_dashboard_data
 
 from .decorators import roles_required
+from .roles import FRONT_OF_HOUSE_ROLES, KITCHEN_VIEW_ROLES, MANAGER_ROLES, ORDER_WRITE_ROLES, PAYMENT_ROLES
 from .utils import friendly_error, resolve_branch
-
-MANAGER_ROLES = (User.Role.OWNER, User.Role.MANAGER)
-FRONT_OF_HOUSE_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
-ORDER_WRITE_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER)
-PAYMENT_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.WAITER, User.Role.CASHIER)
-KITCHEN_VIEW_ROLES = (User.Role.OWNER, User.Role.MANAGER, User.Role.CHEF, User.Role.WAITER, User.Role.CASHIER)
 
 
 class LoginView(DjangoLoginView):

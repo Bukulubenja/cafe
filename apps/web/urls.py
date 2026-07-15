@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import inventory_views, views
+from . import inventory_views, purchasing_views, views
 
 app_name = "web"
 
@@ -21,4 +21,29 @@ urlpatterns = [
     path("inventory/stock/new/", inventory_views.stock_new, name="stock_new"),
     path("inventory/stock/<int:stock_item_id>/adjust/", inventory_views.stock_adjust, name="stock_adjust"),
     path("inventory/ingredients/", inventory_views.ingredients, name="ingredients"),
+    path("purchasing/suppliers/", purchasing_views.suppliers, name="suppliers"),
+    path("purchasing/suppliers/<int:supplier_id>/pay/", purchasing_views.supplier_pay, name="supplier_pay"),
+    path("purchasing/orders/", purchasing_views.purchase_orders, name="purchase_orders"),
+    path("purchasing/orders/new/", purchasing_views.purchase_order_new, name="purchase_order_new"),
+    path("purchasing/orders/<int:order_id>/", purchasing_views.purchase_order_detail, name="purchase_order_detail"),
+    path(
+        "purchasing/orders/<int:order_id>/add-line/",
+        purchasing_views.purchase_order_add_line,
+        name="purchase_order_add_line",
+    ),
+    path(
+        "purchasing/orders/<int:order_id>/receive/",
+        purchasing_views.purchase_order_receive,
+        name="purchase_order_receive",
+    ),
+    path(
+        "purchasing/orders/<int:order_id>/cancel/",
+        purchasing_views.purchase_order_cancel,
+        name="purchase_order_cancel",
+    ),
+    path(
+        "purchasing/orders/<int:order_id>/notify-supplier/",
+        purchasing_views.purchase_order_notify_supplier,
+        name="purchase_order_notify_supplier",
+    ),
 ]

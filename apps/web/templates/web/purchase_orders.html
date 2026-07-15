@@ -1,0 +1,44 @@
+{% extends "web/base.html" %}
+{% load humanize %}
+{% block title %}Purchase orders - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Purchase orders{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle"><a href="{% url 'web:suppliers' %}">Manage suppliers</a></p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% elif not suppliers %}
+<p class="empty"><a href="{% url 'web:suppliers' %}">Add a supplier</a> before creating a purchase order.</p>
+{% else %}
+<div class="panel">
+  <form class="add-form" method="post" action="{% url 'web:purchase_order_new' %}">
+    {% csrf_token %}
+    <select name="supplier" required>
+      {% for s in suppliers %}
+      <option value="{{ s.id }}">{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn primary" type="submit">+ New purchase order</button>
+  </form>
+</div>
+
+<div class="panel">
+  <table class="items">
+    <thead><tr><th>#</th><th>Supplier</th><th>Status</th><th>Total</th><th>Created</th></tr></thead>
+    <tbody>
+      {% for order in orders %}
+      <tr>
+        <td><a href="{% url 'web:purchase_order_detail' order.id %}">PO #{{ order.id }}</a></td>
+        <td>{{ order.supplier.name }}</td>
+        <td><span class="kitchen-status-badge {% if order.status == 'received' %}ready{% elif order.status == 'cancelled' %}pending{% else %}cooking{% endif %}">{{ order.get_status_display }}</span></td>
+        <td>{{ order.total|floatformat:0|intcomma }} UGX</td>
+        <td>{{ order.created_at|date:"M j, H:i" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="empty">No purchase orders yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
