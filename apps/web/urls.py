@@ -30,6 +30,7 @@ urlpatterns = [
     path("orders/<int:order_id>/add-item/", views.order_add_item, name="order_add_item"),
     path("orders/<int:order_id>/pay/", views.order_pay, name="order_pay"),
     path("orders/<int:order_id>/cancel/", views.order_cancel, name="order_cancel"),
+    path("orders/<int:order_id>/split/", views.order_split, name="order_split"),
     path("kitchen/", views.kitchen, name="kitchen"),
     path("inventory/stock/", inventory_views.stock_list, name="stock_list"),
     path("inventory/stock/new/", inventory_views.stock_new, name="stock_new"),

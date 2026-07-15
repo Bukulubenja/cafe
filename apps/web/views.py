@@ -120,6 +120,11 @@ def order_detail(request, order_id):
             "categories": category_list,
             "payment_methods": Order.PaymentMethod.choices,
             "can_edit": request.user.is_superuser or request.user.role in ORDER_WRITE_ROLES,
+            "can_split": (
+                order.status == Order.Status.OPEN
+                and (request.user.is_superuser or request.user.role in ORDER_WRITE_ROLES)
+                and order.active_items.count() > 1
+            ),
             "can_pay": can_take_payment,
             "can_request_refund": can_take_payment,
             "refunds": order_refunds,
@@ -191,6 +196,21 @@ def order_cancel(request, order_id):
     else:
         messages.success(request, "Order cancelled.")
     return redirect("web:order_detail", order_id=order.id)
+
+
+@roles_required(*ORDER_WRITE_ROLES)
+@require_POST
+def order_split(request, order_id):
+    branch = resolve_branch(request)
+    order = get_object_or_404(Order, pk=order_id, branch=branch)
+    item_ids = request.POST.getlist("item_ids")
+    try:
+        new_order = order.split_off(item_ids, actor=request.user)
+    except DjangoValidationError as exc:
+        messages.error(request, friendly_error(exc))
+        return redirect("web:order_detail", order_id=order.id)
+    messages.success(request, f"Split off {new_order.active_items.count()} item(s) into Order #{new_order.id}.")
+    return redirect("web:order_detail", order_id=new_order.id)
 
 
 @roles_required(*KITCHEN_VIEW_ROLES)

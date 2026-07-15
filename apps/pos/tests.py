@@ -90,6 +90,40 @@ class OrderModelTests(TestCase):
         with self.assertRaises(ValidationError):
             order.full_clean(exclude=["tenant", "branch", "created_by"])
 
+    def test_split_off_moves_selected_items_to_a_new_order(self):
+        order = self._make_order()
+        pilau = OrderItem.objects.create(order=order, menu_item=self.kitchen_item, quantity=1)
+        water = OrderItem.objects.create(order=order, menu_item=self.drink_item, quantity=1)
+
+        new_order = order.split_off([water.id])
+        water.refresh_from_db()
+
+        self.assertEqual(new_order.table, order.table)
+        self.assertEqual(list(order.active_items), [pilau])
+        self.assertEqual(list(new_order.active_items), [water])
+        self.assertEqual(order.total, Decimal("17700.00"))  # 15000 + 18% vat
+        self.assertEqual(new_order.total, Decimal("2000.00"))
+
+    def test_split_off_rejects_moving_every_item(self):
+        order = self._make_order()
+        item = OrderItem.objects.create(order=order, menu_item=self.kitchen_item, quantity=1)
+        with self.assertRaises(ValidationError):
+            order.split_off([item.id])
+
+    def test_split_off_rejects_empty_selection(self):
+        order = self._make_order()
+        OrderItem.objects.create(order=order, menu_item=self.kitchen_item, quantity=1)
+        with self.assertRaises(ValidationError):
+            order.split_off([])
+
+    def test_cannot_split_a_paid_order(self):
+        order = self._make_order()
+        item1 = OrderItem.objects.create(order=order, menu_item=self.kitchen_item, quantity=1)
+        OrderItem.objects.create(order=order, menu_item=self.drink_item, quantity=1)
+        order.mark_paid(Order.PaymentMethod.CASH)
+        with self.assertRaises(ValidationError):
+            order.split_off([item1.id])
+
     def test_mark_paid_frees_table_and_logs_audit(self):
         self.table.status = Table.Status.OCCUPIED
         self.table.save(update_fields=["status"])
@@ -246,6 +280,26 @@ class PosApiTests(TestCase):
         )
         self.assertEqual(resp.status_code, 201, resp.content)
         self.assertEqual(resp.data["quantity"], 2)
+
+    def test_waiter_can_split_bill_cashier_cannot(self):
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+        order = Order.objects.create(table=self.table, created_by=self.waiter)
+        item1 = OrderItem.objects.create(order=order, menu_item=self.menu_item, quantity=1)
+        OrderItem.objects.create(order=order, menu_item=self.menu_item, quantity=1)
+        set_current_tenant(None)
+        set_current_branch(None)
+
+        self.client.login(email="cashier@javas.co", password="pw12345!")
+        resp = self.client.post(f"/api/pos/orders/{order.id}/split/", {"item_ids": [item1.id]}, format="json")
+        self.assertEqual(resp.status_code, 403)
+
+        self.client.logout()
+        self.client.login(email="waiter@javas.co", password="pw12345!")
+        resp = self.client.post(f"/api/pos/orders/{order.id}/split/", {"item_ids": [item1.id]}, format="json")
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data["table"], self.table.id)
+        self.assertEqual(len(resp.data["items"]), 1)
 
     def test_cashier_can_take_payment_but_not_create_order(self):
         set_current_tenant(self.cafe)

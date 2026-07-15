@@ -7,14 +7,22 @@
   <span class="status-inline">&middot; {{ order.get_status_display }}</span>
 </h1>
 
+<form method="post" action="{% url 'web:order_split' order.id %}">
+{% csrf_token %}
 <div class="panel">
   <table class="items">
     <thead>
-      <tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Line total</th><th>Kitchen</th></tr>
+      <tr>
+        {% if can_split %}<th></th>{% endif %}
+        <th>Item</th><th>Qty</th><th>Unit price</th><th>Line total</th><th>Kitchen</th>
+      </tr>
     </thead>
     <tbody>
       {% for item in order.active_items %}
       <tr>
+        {% if can_split %}
+        <td><input type="checkbox" name="item_ids" value="{{ item.id }}" aria-label="Select {{ item.menu_item.name }} to split off"></td>
+        {% endif %}
         <td>{{ item.menu_item.name }}{% if item.notes %}<br><small>{{ item.notes }}</small>{% endif %}</td>
         <td>{{ item.quantity }}</td>
         <td>{{ item.unit_price }}</td>
@@ -31,7 +39,11 @@
     <div>VAT: {{ order.vat_total }}</div>
     <div class="grand">Total: {{ order.total }}</div>
   </div>
+  {% if can_split %}
+  <button class="btn small" type="submit" style="margin-top: 0.75rem;">Split selected into a new bill</button>
+  {% endif %}
 </div>
+</form>
 
 {% if order.status == "open" and can_edit %}
 <h2>Add item</h2>

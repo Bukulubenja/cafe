@@ -120,6 +120,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         _run(order.cancel, actor=request.user)
         return Response(OrderSerializer(order).data)
 
+    @action(detail=True, methods=["post"])
+    def split(self, request, pk=None):
+        order = self.get_object()
+        item_ids = request.data.get("item_ids", [])
+        new_order = _run(order.split_off, item_ids, actor=request.user)
+        return Response(OrderSerializer(new_order).data, status=status.HTTP_201_CREATED)
+
 
 class RefundViewSet(viewsets.ModelViewSet):
     serializer_class = RefundSerializer

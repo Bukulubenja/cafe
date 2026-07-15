@@ -127,6 +127,36 @@ class Order(BranchModel):
             branch=self.branch, actor=actor, action="order.cancelled", object_repr=str(self)
         )
 
+    def split_off(self, item_ids, actor=None):
+        """Move the given order items onto a new order for separate payment
+        (readme: Waiter can "Split bills"). Whole order-item lines move
+        together as a unit -- to split a single line's quantity between
+        bills, add it to the order as separate lines to begin with.
+        """
+        if self.status != self.Status.OPEN:
+            raise ValidationError("Only an open order can be split.")
+        items = list(self.active_items.filter(id__in=item_ids))
+        if not items:
+            raise ValidationError("Select at least one item to split off.")
+        if len(items) == self.active_items.count():
+            raise ValidationError("Cannot split off every item; the original order would be left empty.")
+
+        with transaction.atomic():
+            new_order = Order.objects.create(
+                table=self.table,
+                order_type=self.order_type,
+                created_by=actor,
+                tenant=self.tenant,
+                branch=self.branch,
+            )
+            for item in items:
+                item.order = new_order
+                item.save(update_fields=["order"])
+        AuditLog.objects.create(
+            branch=self.branch, actor=actor, action="order.split", object_repr=f"{self} -> {new_order}"
+        )
+        return new_order
+
 
 class OrderItem(BranchModel):
     class KitchenStatus(models.TextChoices):
