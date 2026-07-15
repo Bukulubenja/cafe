@@ -1,0 +1,66 @@
+{% extends "web/base.html" %}
+{% block title %}Staff feeding - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Staff feeding{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">
+  {% if is_manager %}Every staff member's feeding record.{% else %}Your feeding record.{% endif %}
+  {% if is_manager %} &middot; <a href="{% url 'web:feeding_slots' %}">Manage feeding slots</a>{% endif %}
+</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% elif not slots %}
+<p class="empty">
+  No feeding slots configured yet.
+  {% if is_manager %}<a href="{% url 'web:feeding_slots' %}">Add one</a> before staff can log a meal.{% else %}Ask a manager to set one up.{% endif %}
+</p>
+{% else %}
+<div class="dashboard-cols">
+  <div>
+    <h2>{% if is_manager %}Recent records{% else %}Your recent meals{% endif %}</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr>{% if is_manager %}<th>Staff</th>{% endif %}<th>Date</th><th>Slot</th><th>Item</th></tr></thead>
+        <tbody>
+          {% for record in records %}
+          <tr>
+            {% if is_manager %}<td>{{ record.staff.email }}</td>{% endif %}
+            <td>{{ record.date }}</td>
+            <td>{{ record.slot }}</td>
+            <td>{{ record.menu_item.name }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="{% if is_manager %}4{% else %}3{% endif %}" class="empty">No feeding records yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Log today's meal</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_slot">Slot</label>
+          <select name="slot" id="id_slot" required>
+            {% for slot in slots %}
+            <option value="{{ slot.id }}">{{ slot.get_name_display }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="id_menu_item">What did you eat?</label>
+          <select name="menu_item" id="id_menu_item" required>
+            {% for item in menu_items %}
+            <option value="{{ item.id }}">{{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button class="btn primary" type="submit">Log meal</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

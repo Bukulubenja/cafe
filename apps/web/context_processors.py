@@ -16,6 +16,7 @@ MANAGE_URL_NAMES = {
     "purchase_order_receive",
     "purchase_order_cancel",
     "purchase_order_notify_supplier",
+    "feeding_slots",
 }
 
 

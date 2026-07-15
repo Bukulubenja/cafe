@@ -1,0 +1,47 @@
+{% extends "web/base.html" %}
+{% block title %}Feeding slots - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Feeding slots</h1>
+<p class="subtitle"><a href="{% url 'web:feeding_list' %}">Back to staff feeding</a></p>
+
+<div class="dashboard-cols">
+  <div>
+    <h2>Slots</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Name</th><th>Start</th><th>End</th></tr></thead>
+        <tbody>
+          {% for slot in slots %}
+          <tr>
+            <td>{{ slot.get_name_display }}</td>
+            <td>{{ slot.start_time|default:"&mdash;" }}</td>
+            <td>{{ slot.end_time|default:"&mdash;" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="empty">No feeding slots yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Add slot</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_name">Name</label>
+          <select name="name" id="id_name" required>
+            {% for value, label in names %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="id_start_time">Start time</label><input type="time" name="start_time" id="id_start_time"></div>
+        <div class="field"><label for="id_end_time">End time</label><input type="time" name="end_time" id="id_end_time"></div>
+        <button class="btn primary" type="submit">Add slot</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import complimentary_views, inventory_views, purchasing_views, views, wastage_views
+from . import complimentary_views, feeding_views, inventory_views, purchasing_views, views, wastage_views
 
 app_name = "web"
 
@@ -60,4 +60,6 @@ urlpatterns = [
         complimentary_views.complimentary_reject,
         name="complimentary_reject",
     ),
+    path("feeding/", feeding_views.feeding_list, name="feeding_list"),
+    path("feeding/slots/", feeding_views.feeding_slots, name="feeding_slots"),
 ]
