@@ -3,6 +3,7 @@ from django.urls import path
 from . import (
     complimentary_views,
     customer_views,
+    expense_views,
     feeding_views,
     inventory_views,
     purchasing_views,
@@ -73,4 +74,5 @@ urlpatterns = [
     path("customers/", customer_views.customer_list, name="customer_list"),
     path("customers/<int:customer_id>/", customer_views.customer_detail, name="customer_detail"),
     path("customers/<int:customer_id>/redeem/", customer_views.customer_redeem, name="customer_redeem"),
+    path("expenses/", expense_views.expense_list, name="expense_list"),
 ]
