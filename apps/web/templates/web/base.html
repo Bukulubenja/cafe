@@ -19,6 +19,9 @@
       {% endif %}
       <a href="{% url 'web:tables' %}" class="{% if request.resolver_match.url_name == 'tables' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">Tables</a>
       <a href="{% url 'web:kitchen' %}" class="{% if request.resolver_match.url_name == 'kitchen' %}active{% endif %}">Kitchen</a>
+      {% if user.is_superuser or user.is_owner or user.is_manager or user.is_chef %}
+      <a href="{% url 'web:wastage_list' %}" class="{% if request.resolver_match.url_name == 'wastage_list' %}active{% endif %}">Wastage</a>
+      {% endif %}
       {% if user.is_superuser or user.is_owner or user.is_manager %}
       <details class="nav-dropdown" {% if in_manage_section %}open{% endif %}>
         <summary class="{% if in_manage_section %}active{% endif %}">Manage</summary>

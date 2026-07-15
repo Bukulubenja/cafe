@@ -299,6 +299,8 @@ table.items td small { color: var(--muted); }
 .kitchen-status-badge.cooking { background: var(--orange-tint); color: var(--orange); }
 .kitchen-status-badge.ready { background: var(--green-tint); color: var(--green); }
 .kitchen-status-badge.served { background: var(--green-tint); color: var(--green); }
+.kitchen-status-badge.approved { background: var(--green-tint); color: var(--green); }
+.kitchen-status-badge.rejected { background: var(--red-tint); color: var(--red); }
 
 .totals { text-align: right; font-size: 0.95rem; font-variant-numeric: tabular-nums; color: var(--muted); }
 .totals div { padding: 0.15rem 0; }

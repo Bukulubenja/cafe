@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import inventory_views, purchasing_views, views
+from . import inventory_views, purchasing_views, views, wastage_views
 
 app_name = "web"
 
@@ -46,4 +46,7 @@ urlpatterns = [
         purchasing_views.purchase_order_notify_supplier,
         name="purchase_order_notify_supplier",
     ),
+    path("wastage/", wastage_views.wastage_list, name="wastage_list"),
+    path("wastage/<int:record_id>/approve/", wastage_views.wastage_approve, name="wastage_approve"),
+    path("wastage/<int:record_id>/reject/", wastage_views.wastage_reject, name="wastage_reject"),
 ]

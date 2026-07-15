@@ -1,0 +1,75 @@
+{% extends "web/base.html" %}
+{% block title %}Wastage - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Wastage{% if branch %} &middot; {{ branch.name }}{% endif %}</h1>
+<p class="subtitle">Stock is deducted immediately when you record wastage; a manager can reject a wrong entry to restore it.</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="dashboard-cols">
+  <div>
+    <h2>Recent records</h2>
+    <div class="panel">
+      <table class="items">
+        <thead><tr><th>Ingredient</th><th>Qty</th><th>Reason</th><th>Status</th><th>Recorded by</th>{% if can_approve %}<th>Action</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for record in records %}
+          <tr>
+            <td>{{ record.ingredient.name }}</td>
+            <td>{{ record.quantity }} {{ record.ingredient.unit }}</td>
+            <td>{{ record.get_reason_display }}{% if record.notes %} <small>&mdash; {{ record.notes }}</small>{% endif %}</td>
+            <td><span class="kitchen-status-badge {{ record.status }}">{{ record.get_status_display }}</span></td>
+            <td>{{ record.recorded_by.email|default:"&mdash;" }}</td>
+            {% if can_approve %}
+            <td>
+              {% if record.status == "pending" %}
+              <form class="inline" method="post" action="{% url 'web:wastage_approve' record.id %}">
+                {% csrf_token %}
+                <button class="btn small" type="submit">Approve</button>
+              </form>
+              <form class="inline" method="post" action="{% url 'web:wastage_reject' record.id %}">
+                {% csrf_token %}
+                <button class="btn small danger" type="submit">Reject</button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="empty">No wastage recorded yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>Record wastage</h2>
+    <div class="panel">
+      <form method="post">
+        {% csrf_token %}
+        <div class="field">
+          <label for="id_ingredient">Ingredient</label>
+          <select name="ingredient" id="id_ingredient" required>
+            {% for ingredient in ingredients %}
+            <option value="{{ ingredient.id }}">{{ ingredient.name }} ({{ ingredient.get_unit_display }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="id_quantity">Quantity</label><input type="number" step="0.001" min="0.001" name="quantity" id="id_quantity" required></div>
+        <div class="field">
+          <label for="id_reason">Reason</label>
+          <select name="reason" id="id_reason" required>
+            {% for value, label in reasons %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field"><label for="id_notes">Notes</label><input type="text" name="notes" id="id_notes"></div>
+        <button class="btn primary" type="submit">Record wastage</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
