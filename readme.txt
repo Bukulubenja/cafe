@@ -815,7 +815,7 @@ Every transaction, refund, stock adjustment, and complimentary meal is linked to
 
 * **Backend:** Django + Django REST Framework
 * **Database:** PostgreSQL (recommended for transactional systems)
-* **Frontend (Web):** React
+* **Frontend (Web):** React /Django
 * **Mobile App:** React Native (for managers and owners)
 * **Real-time Updates:** WebSockets (Django Channels)
 * **Receipts:** Thermal printer support (58 mm and 80 mm)
