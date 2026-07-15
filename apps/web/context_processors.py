@@ -28,6 +28,7 @@ MANAGE_URL_NAMES = {
     "balance_sheet",
     "shift_list",
     "leaderboards",
+    "menu_templates",
 }
 
 

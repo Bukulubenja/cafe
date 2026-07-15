@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.menu.menu_templates import MENU_TEMPLATES, apply_menu_template
 from apps.menu.models import Category, MenuItem
 
 from .decorators import roles_required
@@ -106,3 +107,32 @@ def menu_item_edit(request, item_id):
 
     categories = Category.objects.all()
     return render(request, "web/menu_item_edit.html", {"branch": branch, "item": item, "categories": categories})
+
+
+@roles_required(*MANAGER_ROLES)
+def menu_templates(request):
+    branch = resolve_branch(request)
+    templates = [{"key": key, **data} for key, data in MENU_TEMPLATES.items()]
+    return render(request, "web/menu_templates.html", {"branch": branch, "templates": templates})
+
+
+@roles_required(*MANAGER_ROLES)
+@require_POST
+def menu_template_apply(request, template_key):
+    branch = resolve_branch(request)
+    if branch is None:
+        messages.error(request, "This café has no branches configured yet.")
+        return redirect("web:menu_templates")
+    if template_key not in MENU_TEMPLATES:
+        messages.error(request, "Unknown menu template.")
+        return redirect("web:menu_templates")
+
+    created = apply_menu_template(template_key, branch.tenant, branch=branch)
+    label = MENU_TEMPLATES[template_key]["label"]
+    messages.success(
+        request,
+        f"Applied {label}: added {created['categories']} categor{'y' if created['categories'] == 1 else 'ies'}, "
+        f"{created['menu_items']} menu item(s), {created['ingredients']} new ingredient(s), "
+        f"{created['stock_items']} stock item(s).",
+    )
+    return redirect("web:menu_item_list")

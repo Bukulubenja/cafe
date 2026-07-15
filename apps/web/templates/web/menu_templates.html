@@ -1,0 +1,32 @@
+{% extends "web/base.html" %}
+{% block title %}Menu templates - Cafe ERP{% endblock %}
+{% block content %}
+<h1>Menu templates</h1>
+<p class="subtitle">
+  Ready-made Ugandan menus: each adds its categories, menu items, recipes, and stock items to your café. Applying is
+  safe to repeat -- it only fills in what's missing by name, never overwrites or duplicates.
+  &middot; <a href="{% url 'web:menu_item_list' %}">Back to menu items</a>
+</p>
+
+{% if not branch %}
+<p class="empty">This café has no branches configured yet.</p>
+{% else %}
+<div class="dashboard-cols">
+  {% for template in templates %}
+  <div>
+    <h2>{{ template.label }}</h2>
+    <div class="panel">
+      <p>{{ template.description }}</p>
+      <p class="subtitle">
+        {% for category_name in template.categories.keys %}{{ category_name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+      </p>
+      <form method="post" action="{% url 'web:menu_template_apply' template.key %}">
+        {% csrf_token %}
+        <button class="btn primary small" type="submit">Apply {{ template.label }}</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

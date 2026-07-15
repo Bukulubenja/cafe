@@ -95,3 +95,49 @@ class MenuItemAvailabilityTests(TestCase):
 
         self.assertTrue(item.is_available_at(self.branch))
         self.assertFalse(item.is_available_at(other_branch))  # no StockItem at all there
+
+
+class MenuTemplateTests(TestCase):
+    def setUp(self):
+        self.cafe = Cafe.objects.create(name="Javas")
+        self.branch = Branch.objects.create(tenant=self.cafe, name="Kampala Rd")
+        set_current_tenant(self.cafe)
+        set_current_branch(self.branch)
+
+    def tearDown(self):
+        set_current_tenant(None)
+        set_current_branch(None)
+
+    def test_apply_creates_categories_items_recipes_and_stock(self):
+        from .menu_templates import apply_menu_template
+
+        created = apply_menu_template("local_restaurant", self.cafe, branch=self.branch)
+        self.assertGreater(created["categories"], 0)
+        self.assertGreater(created["menu_items"], 0)
+        self.assertGreater(created["ingredients"], 0)
+        self.assertGreater(created["stock_items"], 0)
+
+        rolex = MenuItem.objects.get(name="Rolex")
+        self.assertEqual(rolex.category.name, "Breakfast")
+        self.assertEqual(rolex.selling_price, Decimal("3000"))
+        recipe = RecipeItem.objects.get(menu_item=rolex, ingredient__name="Eggs")
+        self.assertEqual(recipe.quantity_required, Decimal("2"))
+        self.assertTrue(StockItem.objects.filter(ingredient__name="Eggs", branch=self.branch).exists())
+
+    def test_apply_is_idempotent(self):
+        from .menu_templates import apply_menu_template
+
+        apply_menu_template("local_restaurant", self.cafe, branch=self.branch)
+        second_run = apply_menu_template("local_restaurant", self.cafe, branch=self.branch)
+
+        self.assertEqual(second_run["categories"], 0)
+        self.assertEqual(second_run["menu_items"], 0)
+        self.assertEqual(MenuItem.objects.filter(name="Rolex").count(), 1)
+
+    def test_apply_without_branch_skips_stock_items(self):
+        from .menu_templates import apply_menu_template
+
+        created = apply_menu_template("juice_bar", self.cafe, branch=None)
+        self.assertEqual(created["stock_items"], 0)
+        self.assertGreater(created["menu_items"], 0)
+        self.assertFalse(StockItem.objects.exists())
