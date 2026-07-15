@@ -5,17 +5,26 @@
   --border-strong: #cbd0d9;
   --text: #1c2128;
   --muted: #667085;
-  --brand: #2f5fd6;
-  --brand-dark: #2449ac;
-  --brand-tint: #eef2fd;
+
+  /* Brand: warm terracotta/oxblood family, replacing the earlier generic
+     blue. --red/--orange are drawn from the same family so the palette
+     reads as one cohesive identity, but stay distinct enough from --brand
+     to keep "primary action" and "danger/status" visually separable.
+     --green/--yellow are intentionally left alone: the readme specifies
+     green/yellow/red as the table-status colors, and that's information,
+     not decoration -- collapsing it into one warm family would hurt
+     at-a-glance recognition of which tables are free. */
+  --brand: #95271d;
+  --brand-dark: #60241e;
+  --brand-tint: #f7e6e2;
   --green: #17874b;
   --green-tint: #e7f6ee;
   --yellow: #b7791f;
   --yellow-tint: #fdf3e0;
-  --red: #c62b2b;
-  --red-tint: #fbeaea;
-  --orange: #c2560c;
-  --orange-tint: #fdf0e4;
+  --red: #b34a44;
+  --red-tint: #fbebe9;
+  --orange: #e77b49;
+  --orange-tint: #fdf0e6;
   --radius-sm: 8px;
   --radius-md: 12px;
   --shadow-sm: 0 1px 2px rgba(28, 33, 40, 0.06), 0 1px 1px rgba(28, 33, 40, 0.04);
@@ -409,7 +418,7 @@ table.items td small { color: var(--muted); }
 }
 @keyframes delayed-pulse {
   0%, 100% { box-shadow: var(--shadow-sm); }
-  50% { box-shadow: 0 0 0 3px rgba(198, 43, 43, 0.25); }
+  50% { box-shadow: 0 0 0 3px rgba(179, 74, 68, 0.28); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ticket.delayed { animation: none; }
